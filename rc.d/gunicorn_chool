@@ -1,0 +1,25 @@
+#!/bin/ksh
+#
+# PROVIDE: gunicorn_chool
+# REQUIRE: DAEMON
+# KEYWORDS:
+#
+# Gunicorn service for Charter Meals
+
+: ${gunicorn_chool_enable:=YES}
+
+daemon_dir="/var/www/htdocs/www.chool.app"
+daemon_venv="${daemon_dir}/chool_env"
+daemon="${daemon_venv}/bin/gunicorn"
+pidfile="/var/run/gunicorn_chool.pid"
+
+# Use --graceful-timeout to restart workers that take too long
+daemon_flags="--daemon --pid ${pidfile} --chdir ${daemon_dir} --bind 127.0.0.1:5150 app:app --workers 6 --threads 4 --timeout 60 --graceful-timeout 30"
+
+rc_bg=NO
+
+command_user="www"
+
+. /etc/rc.d/rc.subr
+
+rc_cmd "$1"

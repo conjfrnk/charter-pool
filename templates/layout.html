@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Basic CSP (reinforced by Flask-Talisman) -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self';">
+  <title>Charter Pool</title>
+  <!-- Versioned asset helper (see asset_url_for) -->
+  <!-- For now, inline reference static files directly -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='pcc_logo.png') }}">
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <div class="header-left">
+        <img class="logo" src="{{ url_for('static', filename='pcc_logo.png') }}" alt="Charter Pool logo">
+        <h1>Charter Pool</h1>
+      </div>
+      <!-- Top-right nav area left empty for now -->
+      <div class="nav">
+        <!-- Future login/admin links can go here -->
+      </div>
+    </header>
+
+    <main class="content">
+      <div id="flash-messages" aria-live="polite">
+        <!-- flash messages could go here in the future -->
+      </div>
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+      <div class="footer-blurb">
+        Created by <a href="https://conjfrnk.com" target="_blank">Connor Frank</a>, the Charter House Manager
+        -- <a href="https://github.com/conjfrnk/charter-pool" target="_blank">GitHub</a> ({{ version }})
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

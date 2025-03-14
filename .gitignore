@@ -1,0 +1,6 @@
+chool_env
+secrets.txt
+__pycache__/
+*.gz
+.env
+.venv

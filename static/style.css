@@ -1,0 +1,156 @@
+/* Global Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html, body, .wrapper {
+  margin: 0;
+  padding: 0;
+}
+
+/* Base Styles */
+body {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  background-color: #f8f8f8;
+  color: #333;
+}
+a {
+  color: #C5A144;
+  text-decoration: underline;
+}
+a:hover {
+  text-decoration: underline;
+}
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Header Styles */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #561C1D;
+  z-index: 1000;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+}
+.logo {
+  height: 50px;
+  width: auto;
+}
+header h1 {
+  margin-left: 10px;
+  font-size: 24px;
+  color: #fff;
+}
+.nav {
+  font-size: 16px;
+  color: #fff;
+}
+
+/* Content Area */
+.content {
+  flex: 1;
+  margin-top: 80px;
+  padding: 20px;
+}
+
+/* Footer (Pinned at Bottom) */
+footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: #561C1D;
+  color: #fff;
+  padding: 10px 0;
+  text-align: center;
+}
+.footer-blurb {
+  font-size: 14px;
+}
+
+/* Flash Messages (optional) */
+#messages {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 15px;
+}
+#messages li {
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  font-size: 0.95em;
+  position: relative;
+}
+#messages li.success {
+  background-color: #d4edda;
+  color: #155724;
+}
+#messages li.danger {
+  background-color: #f8d7da;
+  color: #721c1d;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  body {
+    font-size: 18px;
+    line-height: 1.4;
+  }
+  header {
+    flex-direction: column;
+    align-items: center;
+    padding: 5px 10px;
+  }
+  header h1 {
+    font-size: 20px;
+  }
+  .nav {
+    font-size: 14px;
+    margin-top: 4px;
+    text-align: center;
+  }
+  .content {
+    margin-top: 100px;
+    padding: 10px;
+  }
+  footer {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  .footer-blurb {
+    font-size: 12px;
+  }
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  html, body, .wrapper {
+    background-color: #1e1e1e;
+  }
+  body {
+    color: #e0e0e0;
+  }
+  .content {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+  }
+  footer {
+    background-color: #561C1D;
+    color: #C5A144;
+  }
+}
