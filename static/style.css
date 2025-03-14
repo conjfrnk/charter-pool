@@ -75,12 +75,17 @@ footer {
   left: 0;
   width: 100%;
   background-color: #561C1D;
-  color: #fff;
   padding: 10px 0;
   text-align: center;
 }
+
+/* Ensure non-link text is white in the footer, and links are gold */
 .footer-blurb {
   font-size: 14px;
+  color: #fff;
+}
+.footer-blurb a {
+  color: #C5A144;
 }
 
 /* Flash Messages (optional) */
@@ -151,6 +156,6 @@ footer {
   }
   footer {
     background-color: #561C1D;
-    color: #C5A144;
+    color: #fff;
   }
 }
