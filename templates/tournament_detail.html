@@ -1,0 +1,136 @@
+{% extends "layout.html" %}
+{% block title %}{{ tournament.name }} - Charter Pool{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="tournament-header">
+    <h2>{{ tournament.name }}</h2>
+    <div class="tournament-meta">
+      <span class="tournament-status status-{{ tournament.status }}">{{ tournament.status }}</span>
+      <span class="tournament-format">{{ tournament.format.replace('_', ' ').title() }}</span>
+    </div>
+  </div>
+  
+  {% if tournament.can_signup() and not current_admin %}
+    {% if user_participant %}
+      <div class="alert alert-success">
+        You are signed up! Your self-rating: {{ user_participant.self_rating }}/10
+      </div>
+    {% else %}
+      <div class="signup-box">
+        <h3>Sign Up</h3>
+        <form method="POST" action="{{ url_for('tournament_signup', tournament_id=tournament.id) }}">
+          <div class="form-group">
+            <label for="self_rating">Rate your pool skill (1-10):</label>
+            <div class="rating-input">
+              {% for i in range(1, 11) %}
+              <label class="rating-label">
+                <input type="radio" name="self_rating" value="{{ i }}" required>
+                <span>{{ i }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <small>This helps with seeding. Be honest!</small>
+          </div>
+          <button type="submit" class="btn btn-primary">Join Tournament</button>
+        </form>
+      </div>
+    {% endif %}
+  {% endif %}
+  
+  {% if current_admin and tournament.status == 'open' %}
+    <form method="POST" action="{{ url_for('admin_activate_tournament', tournament_id=tournament.id) }}" style="margin: 20px 0;">
+      <button type="submit" class="btn btn-primary">Activate Tournament</button>
+    </form>
+  {% endif %}
+  
+  <section class="participants-section">
+    <h3>Participants ({{ participants|length }})</h3>
+    {% if participants %}
+    <table class="participants-table">
+      <thead>
+        <tr>
+          {% if tournament.status != 'open' %}<th>Seed</th>{% endif %}
+          <th>Player</th>
+          <th>NetID</th>
+          <th>Self Rating</th>
+          <th>Current ELO</th>
+          {% if tournament.status == 'completed' %}<th>Placement</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in participants %}
+        <tr>
+          {% if tournament.status != 'open' %}<td>{{ p.seed or '-' }}</td>{% endif %}
+          <td>{{ p.user.full_name }}</td>
+          <td>{{ p.user_netid }}</td>
+          <td>{{ p.self_rating }}/10</td>
+          <td>{{ p.user.elo_rating }}</td>
+          {% if tournament.status == 'completed' %}<td>{{ p.placement or '-' }}</td>{% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No participants yet.</p>
+    {% endif %}
+  </section>
+  
+  {% if tournament.status in ['active', 'completed'] %}
+  <section class="bracket-section">
+    <h3>Bracket</h3>
+    
+    {% for bracket_name, rounds in matches_by_bracket.items() %}
+    <div class="bracket-container">
+      <h4>{{ bracket_name.replace('_', ' ').title() }}</h4>
+      
+      {% for round_num, matches in rounds|dictsort %}
+      <div class="bracket-round">
+        <h5>Round {{ round_num }}</h5>
+        <div class="matches">
+          {% for match in matches %}
+          <div class="match-card {% if match.completed %}completed{% endif %}">
+            <div class="match-header">Match {{ match.match_number }}</div>
+            <div class="match-player {% if match.winner_netid == match.player1_netid %}winner{% endif %}">
+              {% if match.player1_netid %}
+                {% set p1 = participants|selectattr('user_netid', 'equalto', match.player1_netid)|first %}
+                {{ p1.user.full_name if p1 else match.player1_netid }} ({{ match.player1_netid }})
+              {% else %}
+                TBD
+              {% endif %}
+            </div>
+            <div class="match-vs">vs</div>
+            <div class="match-player {% if match.winner_netid == match.player2_netid %}winner{% endif %}">
+              {% if match.player2_netid %}
+                {% set p2 = participants|selectattr('user_netid', 'equalto', match.player2_netid)|first %}
+                {{ p2.user.full_name if p2 else match.player2_netid }} ({{ match.player2_netid }})
+              {% else %}
+                TBD
+              {% endif %}
+            </div>
+            
+            {% if not match.completed and match.is_ready() and tournament.can_report_results() and not current_admin %}
+              {% if current_user and (current_user.netid == match.player1_netid or current_user.netid == match.player2_netid) %}
+              <form method="POST" action="{{ url_for('report_tournament_match', tournament_id=tournament.id, match_id=match.id) }}" class="match-report-form">
+                <select name="winner_netid" required>
+                  <option value="">Select Winner</option>
+                  <option value="{{ match.player1_netid }}">{{ match.player1_netid }}</option>
+                  <option value="{{ match.player2_netid }}">{{ match.player2_netid }}</option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-primary">Report Result</button>
+              </form>
+              {% endif %}
+            {% elif match.completed %}
+              <div class="match-result">Winner: {{ match.winner_netid }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+

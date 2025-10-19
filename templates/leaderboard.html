@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+{% block title %}Leaderboard - Charter Pool{% endblock %}
+{% block content %}
+<div class="page-container">
+  <h2>ELO Leaderboard</h2>
+  
+  <table class="leaderboard-table full">
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Player</th>
+        <th>NetID</th>
+        <th>ELO Rating</th>
+        <th>Wins</th>
+        <th>Losses</th>
+        <th>Win Rate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr {% if current_user and user.netid == current_user.netid %}class="highlight"{% endif %}>
+        <td class="rank-cell">{{ loop.index }}</td>
+        <td>
+          {% if user.first_name and user.last_name %}
+            {{ user.full_name }}
+          {% else %}
+            <span class="incomplete-name">{{ user.netid }}</span>
+          {% endif %}
+        </td>
+        <td>{{ user.netid }}</td>
+        <td class="elo-cell">{{ user.elo_rating }}</td>
+        <td>{{ user.get_win_count() }}</td>
+        <td>{{ user.get_loss_count() }}</td>
+        <td>{{ user.get_win_rate() }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+

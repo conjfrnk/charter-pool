@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block title %}Login - Charter Pool{% endblock %}
+{% block content %}
+<div class="login-container">
+  <div class="login-box">
+    <h2>Welcome to Charter Pool</h2>
+    <p class="subtitle">Enter your NetID to continue</p>
+    
+    <form method="POST" action="{{ url_for('login') }}">
+      <div class="form-group">
+        <label for="netid">NetID</label>
+        <input type="text" id="netid" name="netid" required autofocus placeholder="e.g., jdoe">
+      </div>
+      
+      <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+    
+    <div class="admin-link">
+      <a href="{{ url_for('admin_login') }}">Admin Login</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

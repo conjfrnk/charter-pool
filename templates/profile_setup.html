@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+{% block title %}Profile Setup - Charter Pool{% endblock %}
+{% block content %}
+<div class="login-container">
+  <div class="login-box">
+    <h2>Welcome!</h2>
+    <p class="subtitle">Please complete your profile</p>
+    
+    <form method="POST" action="{{ url_for('profile_setup') }}">
+      <input type="hidden" name="netid" value="{{ netid }}">
+      
+      <div class="form-group">
+        <label for="netid_display">NetID</label>
+        <input type="text" id="netid_display" value="{{ netid }}" disabled>
+      </div>
+      
+      <div class="form-group">
+        <label for="first_name">First Name</label>
+        <input type="text" id="first_name" name="first_name" required autofocus>
+      </div>
+      
+      <div class="form-group">
+        <label for="last_name">Last Name</label>
+        <input type="text" id="last_name" name="last_name" required>
+      </div>
+      
+      <button type="submit" class="btn btn-primary">Complete Setup</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

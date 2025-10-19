@@ -4,12 +4,9 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Basic CSP (reinforced by Flask-Talisman) -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self';">
-  <title>Charter Pool</title>
-  <!-- Versioned asset helper (see asset_url_for) -->
-  <!-- For now, inline reference static files directly -->
+  <title>{% block title %}Charter Pool{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pcc_logo.png') }}">
   <script src="{{ url_for('static', filename='main.js') }}"></script>
@@ -18,18 +15,39 @@
   <div class="wrapper">
     <header>
       <div class="header-left">
-        <img class="logo" src="{{ url_for('static', filename='pcc_logo.png') }}" alt="Charter Pool logo">
-        <h1>Charter Pool</h1>
+        <a href="{{ url_for('index') if current_user else url_for('login') }}">
+          <img class="logo" src="{{ url_for('static', filename='pcc_logo.png') }}" alt="Charter Pool logo">
+        </a>
+        <h1><a href="{{ url_for('index') if current_user else url_for('login') }}">Charter Pool</a></h1>
       </div>
-      <!-- Top-right nav area left empty for now -->
       <div class="nav">
-        <!-- Future login/admin links can go here -->
+        {% if current_user %}
+          <a href="{{ url_for('index') }}">Dashboard</a>
+          <a href="{{ url_for('report_game') }}">Report Game</a>
+          <a href="{{ url_for('tournaments') }}">Tournaments</a>
+          <a href="{{ url_for('leaderboard') }}">Leaderboard</a>
+          <span class="user-info">{{ current_user.full_name }} ({{ current_user.elo_rating }})</span>
+          <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
+        {% elif current_admin %}
+          <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+          <a href="{{ url_for('admin_users') }}">Users</a>
+          <a href="{{ url_for('admin_manage_admins') }}">Admins</a>
+          <a href="{{ url_for('admin_create_tournament') }}">Create Tournament</a>
+          <span class="user-info">Admin: {{ current_admin.username }}</span>
+          <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
+        {% endif %}
       </div>
     </header>
 
     <main class="content">
       <div id="flash-messages" aria-live="polite">
-        <!-- flash messages could go here in the future -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
       </div>
       {% block content %}{% endblock %}
     </main>

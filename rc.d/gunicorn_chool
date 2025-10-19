@@ -4,7 +4,7 @@
 # REQUIRE: DAEMON
 # KEYWORDS:
 #
-# Gunicorn service for Charter Meals
+# Gunicorn service for Charter Pool
 
 : ${gunicorn_chool_enable:=YES}
 

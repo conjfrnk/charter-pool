@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block title %}Game History - Charter Pool{% endblock %}
+{% block content %}
+<div class="page-container">
+  <h2>Game History</h2>
+  
+  {% if games %}
+  <table class="games-table">
+    <thead>
+      <tr>
+        <th>Date/Time</th>
+        <th>Player 1</th>
+        <th>Player 2</th>
+        <th>Winner</th>
+        <th>ELO Change</th>
+        <th>Tournament</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for game in games %}
+      <tr>
+        <td>{{ game.timestamp.strftime('%Y-%m-%d %I:%M%p') }}</td>
+        <td {% if game.player1_netid == game.winner_netid %}class="winner-cell"{% endif %}>
+          {{ game.player1.full_name }} ({{ game.player1_netid }})
+        </td>
+        <td {% if game.player2_netid == game.winner_netid %}class="winner-cell"{% endif %}>
+          {{ game.player2.full_name }} ({{ game.player2_netid }})
+        </td>
+        <td>{{ game.winner_netid }}</td>
+        <td class="elo-cell">±{{ game.elo_change }}</td>
+        <td>
+          {% if game.tournament %}
+          <a href="{{ url_for('tournament_detail', tournament_id=game.tournament_id) }}">
+            {{ game.tournament.name }}
+          </a>
+          {% else %}
+          <span class="casual-game">Casual</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No games recorded yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
+

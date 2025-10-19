@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+{% block title %}Admin Dashboard - Charter Pool{% endblock %}
+{% block content %}
+<div class="admin-container">
+  <h2>Admin Dashboard</h2>
+  
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value">{{ total_users }}</div>
+      <div class="stat-label">Total Users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ active_users }}</div>
+      <div class="stat-label">Active Users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ total_games }}</div>
+      <div class="stat-label">Total Games</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ total_tournaments }}</div>
+      <div class="stat-label">Total Tournaments</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ active_tournaments }}</div>
+      <div class="stat-label">Active Tournaments</div>
+    </div>
+  </div>
+  
+  <div class="admin-section">
+    <h3>Recent Games</h3>
+    {% if recent_games %}
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Player 1</th>
+          <th>Player 2</th>
+          <th>Winner</th>
+          <th>ELO Change</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for game in recent_games %}
+        <tr>
+          <td>{{ game.timestamp.strftime('%m/%d %I:%M%p') }}</td>
+          <td>{{ game.player1.full_name }}</td>
+          <td>{{ game.player2.full_name }}</td>
+          <td>{{ game.winner_netid }}</td>
+          <td>±{{ game.elo_change }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No games yet.</p>
+    {% endif %}
+  </div>
+  
+  <div class="admin-actions">
+    <h3>Quick Actions</h3>
+    <a href="{{ url_for('admin_users') }}" class="btn btn-primary">Manage Users</a>
+    <a href="{{ url_for('admin_manage_admins') }}" class="btn btn-primary">Manage Admins</a>
+    <a href="{{ url_for('admin_create_tournament') }}" class="btn btn-primary">Create Tournament</a>
+    <a href="{{ url_for('tournaments') }}" class="btn btn-secondary">View Tournaments</a>
+  </div>
+</div>
+{% endblock %}
+

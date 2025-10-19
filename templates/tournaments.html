@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% block title %}Tournaments - Charter Pool{% endblock %}
+{% block content %}
+<div class="page-container">
+  <h2>Tournaments</h2>
+  
+  {% if open_tournaments %}
+  <section class="tournament-section">
+    <h3>Open for Signup</h3>
+    <div class="tournament-grid">
+      {% for tournament in open_tournaments %}
+      <div class="tournament-card">
+        <h4><a href="{{ url_for('tournament_detail', tournament_id=tournament.id) }}">{{ tournament.name }}</a></h4>
+        <div class="tournament-info">
+          <span class="tournament-format">{{ tournament.format.replace('_', ' ').title() }}</span>
+          <span class="tournament-participants">{{ tournament.get_participant_count() }} participants</span>
+        </div>
+        <a href="{{ url_for('tournament_detail', tournament_id=tournament.id) }}" class="btn btn-primary btn-sm">View Details</a>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  
+  {% if active_tournaments %}
+  <section class="tournament-section">
+    <h3>Active Tournaments</h3>
+    <div class="tournament-grid">
+      {% for tournament in active_tournaments %}
+      <div class="tournament-card active">
+        <h4><a href="{{ url_for('tournament_detail', tournament_id=tournament.id) }}">{{ tournament.name }}</a></h4>
+        <div class="tournament-info">
+          <span class="tournament-format">{{ tournament.format.replace('_', ' ').title() }}</span>
+          <span class="tournament-participants">{{ tournament.get_participant_count() }} participants</span>
+        </div>
+        <a href="{{ url_for('tournament_detail', tournament_id=tournament.id) }}" class="btn btn-secondary btn-sm">View Bracket</a>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  
+  {% if completed_tournaments %}
+  <section class="tournament-section">
+    <h3>Recent Completed Tournaments</h3>
+    <table class="tournament-table">
+      <thead>
+        <tr>
+          <th>Tournament</th>
+          <th>Format</th>
+          <th>Participants</th>
+          <th>Completed</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tournament in completed_tournaments %}
+        <tr>
+          <td><a href="{{ url_for('tournament_detail', tournament_id=tournament.id) }}">{{ tournament.name }}</a></td>
+          <td>{{ tournament.format.replace('_', ' ').title() }}</td>
+          <td>{{ tournament.get_participant_count() }}</td>
+          <td>{{ tournament.created_at.strftime('%Y-%m-%d') }}</td>
+          <td><a href="{{ url_for('tournament_detail', tournament_id=tournament.id) }}" class="btn btn-secondary btn-sm">View Results</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+  
+  {% if not open_tournaments and not active_tournaments and not completed_tournaments %}
+  <p>No tournaments yet. Check back later!</p>
+  {% endif %}
+</div>
+{% endblock %}
+

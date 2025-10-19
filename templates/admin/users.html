@@ -1,0 +1,97 @@
+{% extends "layout.html" %}
+{% block title %}Manage Users - Charter Pool{% endblock %}
+{% block content %}
+<div class="admin-container">
+  <h2>Manage Users</h2>
+  
+  <div class="admin-section">
+    <h3>Add New User</h3>
+    <p class="help-text">Add a user by NetID. They will be prompted to enter their name on first login.</p>
+    <form method="POST" action="{{ url_for('admin_add_user') }}" class="admin-form inline-form">
+      <div class="form-group">
+        <input type="text" name="netid" placeholder="NetID (e.g., jdoe)" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Add User</button>
+    </form>
+  </div>
+  
+  <div class="admin-section">
+    <h3>Active Users ({{ active_users|length }})</h3>
+    {% if active_users %}
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>NetID</th>
+          <th>Name</th>
+          <th>ELO Rating</th>
+          <th>Games Played</th>
+          <th>Joined</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in active_users %}
+        <tr {% if user.needs_profile_setup %}class="incomplete-profile"{% endif %}>
+          <td>{{ user.netid }}</td>
+          <td>
+            {{ user.full_name }}
+            {% if user.needs_profile_setup %}
+              <span class="badge badge-warning">Profile Incomplete</span>
+            {% endif %}
+          </td>
+          <td>{{ user.elo_rating }}</td>
+          <td>{{ user.get_all_games()|length }}</td>
+          <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+          <td class="actions-cell">
+            <form method="POST" action="{{ url_for('admin_archive_user', netid=user.netid) }}" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Archive this user?')">Archive</button>
+            </form>
+            {% if user.get_all_games()|length == 0 %}
+            <form method="POST" action="{{ url_for('admin_delete_user', netid=user.netid) }}" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this user permanently?')">Delete</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No active users.</p>
+    {% endif %}
+  </div>
+  
+  {% if archived_users %}
+  <div class="admin-section">
+    <h3>Archived Users ({{ archived_users|length }})</h3>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>NetID</th>
+          <th>Name</th>
+          <th>ELO Rating</th>
+          <th>Games Played</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in archived_users %}
+        <tr class="archived-row">
+          <td>{{ user.netid }}</td>
+          <td>{{ user.full_name }}</td>
+          <td>{{ user.elo_rating }}</td>
+          <td>{{ user.get_all_games()|length }}</td>
+          <td class="actions-cell">
+            <form method="POST" action="{{ url_for('admin_unarchive_user', netid=user.netid) }}" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-success">Unarchive</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+

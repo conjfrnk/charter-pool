@@ -1,5 +1,134 @@
 {% extends "layout.html" %}
 {% block content %}
-<h2>Hello World!</h2>
-<p>Welcome to Charter Pool!</p>
+<div class="dashboard">
+  <div class="dashboard-header">
+    <h2>Welcome, {{ user.first_name }}!</h2>
+  </div>
+  
+  <div class="dashboard-grid">
+    <div class="card stats-card">
+      <h3>Your Stats</h3>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">ELO Rating</span>
+          <span class="stat-value">{{ user.elo_rating }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Rank</span>
+          <span class="stat-value">#{{ user_rank }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Wins</span>
+          <span class="stat-value">{{ user.get_win_count() }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Losses</span>
+          <span class="stat-value">{{ user.get_loss_count() }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Win Rate</span>
+          <span class="stat-value">{{ user.get_win_rate() }}%</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3>Quick Actions</h3>
+      <div class="quick-actions">
+        <a href="{{ url_for('report_game') }}" class="btn btn-primary">Report Game Result</a>
+        <a href="{{ url_for('tournaments') }}" class="btn btn-secondary">View Tournaments</a>
+        <a href="{{ url_for('leaderboard') }}" class="btn btn-secondary">Full Leaderboard</a>
+      </div>
+    </div>
+  </div>
+  
+  <div class="dashboard-grid">
+    <div class="card">
+      <h3>Top 10 Leaderboard</h3>
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Player</th>
+            <th>NetID</th>
+            <th>ELO</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in leaderboard %}
+          <tr {% if u.netid == user.netid %}class="highlight"{% endif %}>
+            <td>{{ loop.index }}</td>
+            <td>
+              {% if u.first_name and u.last_name %}
+                {{ u.full_name }}
+              {% else %}
+                <span class="incomplete-name">{{ u.netid }}</span>
+              {% endif %}
+            </td>
+            <td>{{ u.netid }}</td>
+            <td>{{ u.elo_rating }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="card">
+      <h3>Recent Games</h3>
+      {% if recent_games %}
+      <div class="games-list">
+        {% for game in recent_games %}
+        <div class="game-item">
+          <div class="game-players">
+            <span {% if game.winner_netid == game.player1_netid %}class="winner"{% endif %}>
+              {{ game.player1.full_name }}
+            </span>
+            vs
+            <span {% if game.winner_netid == game.player2_netid %}class="winner"{% endif %}>
+              {{ game.player2.full_name }}
+            </span>
+          </div>
+          <div class="game-meta">
+            <span class="elo-change">±{{ game.elo_change }}</span>
+            <span class="game-time">{{ game.timestamp.strftime('%m/%d %I:%M%p') }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p>No games yet. <a href="{{ url_for('report_game') }}">Report your first game!</a></p>
+      {% endif %}
+    </div>
+  </div>
+  
+  {% if open_tournaments or user_tournaments %}
+  <div class="card">
+    <h3>Tournaments</h3>
+    {% if user_tournaments %}
+    <h4>Your Active Tournaments</h4>
+    <ul class="tournament-list">
+      {% for t in user_tournaments %}
+      <li>
+        <a href="{{ url_for('tournament_detail', tournament_id=t.id) }}">{{ t.name }}</a>
+        <span class="tournament-status status-{{ t.status }}">{{ t.status }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    
+    {% if open_tournaments %}
+    <h4>Open for Signup</h4>
+    <ul class="tournament-list">
+      {% for t in open_tournaments %}
+      <li>
+        <a href="{{ url_for('tournament_detail', tournament_id=t.id) }}">{{ t.name }}</a>
+        <span class="tournament-format">{{ t.format.replace('_', ' ').title() }}</span>
+        <span class="tournament-participants">{{ t.get_participant_count() }} players</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
 {% endblock %}

@@ -1,0 +1,122 @@
+{% extends "layout.html" %}
+{% block title %}Report Game - Charter Pool{% endblock %}
+{% block content %}
+<div class="page-container">
+  <h2>Report Game Result</h2>
+  
+  <form method="POST" action="{{ url_for('report_game') }}" class="game-report-form">
+    <div class="form-group">
+      <label for="opponent_search">Search for Opponent</label>
+      <input type="text" id="opponent_search" placeholder="Type NetID or name..." autocomplete="off">
+      <div id="search_results" class="search-results"></div>
+      <input type="hidden" id="opponent_netid" name="opponent_netid" required>
+      <div id="selected_opponent" class="selected-opponent"></div>
+    </div>
+    
+    <div class="form-group">
+      <label>Who won?</label>
+      <div class="radio-group">
+        <label class="radio-label">
+          <input type="radio" name="winner_netid" value="{{ user.netid }}" required>
+          <span>I won</span>
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="winner_netid" id="opponent_won" required>
+          <span>My opponent won</span>
+        </label>
+      </div>
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Submit Result</button>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('opponent_search');
+  const resultsDiv = document.getElementById('search_results');
+  const opponentNetidInput = document.getElementById('opponent_netid');
+  const selectedOpponentDiv = document.getElementById('selected_opponent');
+  const opponentWonRadio = document.getElementById('opponent_won');
+  
+  let searchTimeout;
+  let selectedOpponent = null;
+  
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim();
+    
+    if (query.length < 2) {
+      resultsDiv.innerHTML = '';
+      resultsDiv.style.display = 'none';
+      return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+      fetch(`/users/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(users => {
+          if (users.length === 0) {
+            resultsDiv.innerHTML = '<div class="search-result-item">No users found</div>';
+            resultsDiv.style.display = 'block';
+            return;
+          }
+          
+          resultsDiv.innerHTML = users.map(user => `
+            <div class="search-result-item" data-netid="${user.netid}" data-name="${user.name}" data-elo="${user.elo}">
+              <strong>${user.name}</strong> (${user.netid})
+            </div>
+          `).join('');
+          resultsDiv.style.display = 'block';
+          
+          // Add click handlers
+          document.querySelectorAll('.search-result-item[data-netid]').forEach(item => {
+            item.addEventListener('click', () => {
+              selectedOpponent = {
+                netid: item.dataset.netid,
+                name: item.dataset.name,
+                elo: item.dataset.elo
+              };
+              selectOpponent();
+            });
+          });
+        });
+    }, 300);
+  });
+  
+  function selectOpponent() {
+    if (!selectedOpponent) return;
+    
+    opponentNetidInput.value = selectedOpponent.netid;
+    opponentWonRadio.value = selectedOpponent.netid;
+    searchInput.value = '';
+    resultsDiv.innerHTML = '';
+    resultsDiv.style.display = 'none';
+    
+    selectedOpponentDiv.innerHTML = `
+      <div class="selected-opponent-card">
+        <strong>${selectedOpponent.name}</strong> (${selectedOpponent.netid})
+        <button type="button" class="clear-btn" onclick="clearOpponent()">×</button>
+      </div>
+    `;
+    selectedOpponentDiv.style.display = 'block';
+  }
+  
+  window.clearOpponent = () => {
+    selectedOpponent = null;
+    opponentNetidInput.value = '';
+    selectedOpponentDiv.innerHTML = '';
+    selectedOpponentDiv.style.display = 'none';
+  };
+  
+  // Hide results when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+      resultsDiv.style.display = 'none';
+    }
+  });
+});
+</script>
+{% endblock %}
+
