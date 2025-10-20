@@ -79,14 +79,29 @@
       <div class="games-list">
         {% for game in recent_games %}
         <div class="game-item">
+          <span class="game-type-badge-small {{ game.game_type }}">{{ game.game_type[0].upper() }}</span>
           <div class="game-players">
-            <span {% if game.winner_netid == game.player1_netid %}class="winner"{% endif %}>
-              {{ game.player1.full_name }}
-            </span>
-            vs
-            <span {% if game.winner_netid == game.player2_netid %}class="winner"{% endif %}>
-              {{ game.player2.full_name }}
-            </span>
+            {% if game.is_doubles() %}
+              <!-- Doubles Game -->
+              <div class="doubles-teams">
+                <span class="team-label {% if game.winner_netid in game.get_team1_netids() %}winner{% endif %}">
+                  {{ game.player1.full_name }} & {{ game.player2.full_name }}
+                </span>
+                <span class="vs-text">vs</span>
+                <span class="team-label {% if game.winner_netid in game.get_team2_netids() %}winner{% endif %}">
+                  {{ User.query.get(game.player3_netid).full_name }} & {{ User.query.get(game.player4_netid).full_name }}
+                </span>
+              </div>
+            {% else %}
+              <!-- Singles Game -->
+              <span {% if game.winner_netid == game.player1_netid %}class="winner"{% endif %}>
+                {{ game.player1.full_name }}
+              </span>
+              <span class="vs-text">vs</span>
+              <span {% if game.winner_netid == game.player2_netid %}class="winner"{% endif %}>
+                {{ game.player2.full_name }}
+              </span>
+            {% endif %}
           </div>
           <div class="game-meta">
             <span class="elo-change">±{{ game.elo_change }}</span>

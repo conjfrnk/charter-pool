@@ -9,8 +9,8 @@
     <thead>
       <tr>
         <th>Date/Time</th>
-        <th>Player 1</th>
-        <th>Player 2</th>
+        <th>Type</th>
+        <th>Teams/Players</th>
         <th>Winner</th>
         <th>ELO Change</th>
         <th>Tournament</th>
@@ -20,13 +20,49 @@
       {% for game in games %}
       <tr>
         <td>{{ game.timestamp.strftime('%Y-%m-%d %I:%M%p') }}</td>
-        <td {% if game.player1_netid == game.winner_netid %}class="winner-cell"{% endif %}>
-          {{ game.player1.full_name }} ({{ game.player1_netid }})
+        <td>
+          <span class="game-type-badge {{ game.game_type }}">
+            {{ game.game_type.title() }}
+          </span>
         </td>
-        <td {% if game.player2_netid == game.winner_netid %}class="winner-cell"{% endif %}>
-          {{ game.player2.full_name }} ({{ game.player2_netid }})
+        <td>
+          {% if game.is_doubles() %}
+            <!-- Doubles Game -->
+            <div class="doubles-match">
+              <div class="team {% if game.winner_netid in game.get_team1_netids() %}winning-team{% endif %}">
+                <strong>Team 1:</strong> 
+                {{ game.player1.full_name }} & {{ game.player2.full_name }}
+              </div>
+              <div class="vs-separator">vs</div>
+              <div class="team {% if game.winner_netid in game.get_team2_netids() %}winning-team{% endif %}">
+                <strong>Team 2:</strong> 
+                {{ User.query.get(game.player3_netid).full_name }} & {{ User.query.get(game.player4_netid).full_name }}
+              </div>
+            </div>
+          {% else %}
+            <!-- Singles Game -->
+            <div class="singles-match">
+              <span {% if game.player1_netid == game.winner_netid %}class="winner-name"{% endif %}>
+                {{ game.player1.full_name }}
+              </span>
+              <span class="vs-separator">vs</span>
+              <span {% if game.player2_netid == game.winner_netid %}class="winner-name"{% endif %}>
+                {{ game.player2.full_name }}
+              </span>
+            </div>
+          {% endif %}
         </td>
-        <td>{{ game.winner_netid }}</td>
+        <td>
+          {% if game.is_doubles() %}
+            {% if game.winner_netid in game.get_team1_netids() %}
+              Team 1
+            {% else %}
+              Team 2
+            {% endif %}
+          {% else %}
+            {{ User.query.get(game.winner_netid).full_name }}
+          {% endif %}
+        </td>
         <td class="elo-cell">±{{ game.elo_change }}</td>
         <td>
           {% if game.tournament %}
@@ -45,5 +81,51 @@
   <p>No games recorded yet.</p>
   {% endif %}
 </div>
+
+<style>
+.game-type-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+.game-type-badge.singles {
+  background-color: #3498db;
+  color: white;
+}
+.game-type-badge.doubles {
+  background-color: #e67e22;
+  color: white;
+}
+.doubles-match {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.singles-match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.team {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+}
+.winning-team {
+  background-color: #d4edda;
+  font-weight: 600;
+}
+.winner-name {
+  font-weight: 600;
+  color: #28a745;
+}
+.vs-separator {
+  color: #6c757d;
+  font-size: 0.9em;
+  font-style: italic;
+}
+</style>
 {% endblock %}
 

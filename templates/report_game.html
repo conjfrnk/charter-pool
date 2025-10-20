@@ -5,25 +5,86 @@
   <h2>Report Game Result</h2>
   
   <form method="POST" action="{{ url_for('report_game') }}" class="game-report-form">
+    <!-- Game Type Selection -->
     <div class="form-group">
-      <label for="opponent_search">Search for Opponent</label>
-      <input type="text" id="opponent_search" placeholder="Type NetID or name..." autocomplete="off">
-      <div id="search_results" class="search-results"></div>
-      <input type="hidden" id="opponent_netid" name="opponent_netid" required>
-      <div id="selected_opponent" class="selected-opponent"></div>
-    </div>
-    
-    <div class="form-group">
-      <label>Who won?</label>
+      <label>Game Type</label>
       <div class="radio-group">
         <label class="radio-label">
-          <input type="radio" name="winner_netid" value="{{ user.netid }}" required>
-          <span>I won</span>
+          <input type="radio" name="game_type" value="singles" checked required>
+          <span>Singles (1v1)</span>
         </label>
         <label class="radio-label">
-          <input type="radio" name="winner_netid" id="opponent_won" required>
-          <span>My opponent won</span>
+          <input type="radio" name="game_type" value="doubles" required>
+          <span>Doubles (2v2)</span>
         </label>
+      </div>
+    </div>
+
+    <!-- Singles Form -->
+    <div id="singles_form" class="game-type-form">
+      <div class="form-group">
+        <label for="opponent_search">Search for Opponent</label>
+        <input type="text" id="opponent_search" placeholder="Type NetID or name..." autocomplete="off">
+        <div id="search_results" class="search-results"></div>
+        <input type="hidden" id="opponent_netid" name="opponent_netid">
+        <div id="selected_opponent" class="selected-opponent"></div>
+      </div>
+      
+      <div class="form-group">
+        <label>Who won?</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="winner_netid" value="{{ user.netid }}">
+            <span>I won</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="winner_netid" id="opponent_won">
+            <span>My opponent won</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Doubles Form -->
+    <div id="doubles_form" class="game-type-form" style="display: none;">
+      <h3>Your Team (Team 1)</h3>
+      <div class="form-group">
+        <label for="partner_search">Your Partner</label>
+        <input type="text" id="partner_search" placeholder="Type NetID or name..." autocomplete="off">
+        <div id="partner_search_results" class="search-results"></div>
+        <input type="hidden" id="partner_netid" name="partner_netid">
+        <div id="selected_partner" class="selected-opponent"></div>
+      </div>
+
+      <h3>Opponent Team (Team 2)</h3>
+      <div class="form-group">
+        <label for="opponent1_search">First Opponent</label>
+        <input type="text" id="opponent1_search" placeholder="Type NetID or name..." autocomplete="off">
+        <div id="opponent1_search_results" class="search-results"></div>
+        <input type="hidden" id="opponent1_netid" name="opponent1_netid">
+        <div id="selected_opponent1" class="selected-opponent"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="opponent2_search">Second Opponent</label>
+        <input type="text" id="opponent2_search" placeholder="Type NetID or name..." autocomplete="off">
+        <div id="opponent2_search_results" class="search-results"></div>
+        <input type="hidden" id="opponent2_netid" name="opponent2_netid">
+        <div id="selected_opponent2" class="selected-opponent"></div>
+      </div>
+      
+      <div class="form-group">
+        <label>Which team won?</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="winning_team" value="team1">
+            <span>My team won (You + Partner)</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="winning_team" value="team2">
+            <span>Opponent team won</span>
+          </label>
+        </div>
       </div>
     </div>
     
@@ -34,88 +95,128 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const searchInput = document.getElementById('opponent_search');
-  const resultsDiv = document.getElementById('search_results');
-  const opponentNetidInput = document.getElementById('opponent_netid');
-  const selectedOpponentDiv = document.getElementById('selected_opponent');
-  const opponentWonRadio = document.getElementById('opponent_won');
+  // Toggle between singles and doubles forms
+  const gameTypeRadios = document.querySelectorAll('input[name="game_type"]');
+  const singlesForm = document.getElementById('singles_form');
+  const doublesForm = document.getElementById('doubles_form');
   
-  let searchTimeout;
-  let selectedOpponent = null;
+  gameTypeRadios.forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      if (e.target.value === 'singles') {
+        singlesForm.style.display = 'block';
+        doublesForm.style.display = 'none';
+        // Make singles fields required
+        document.getElementById('opponent_netid').required = true;
+        // Make doubles fields not required
+        document.getElementById('partner_netid').required = false;
+        document.getElementById('opponent1_netid').required = false;
+        document.getElementById('opponent2_netid').required = false;
+      } else {
+        singlesForm.style.display = 'none';
+        doublesForm.style.display = 'block';
+        // Make singles fields not required
+        document.getElementById('opponent_netid').required = false;
+        // Make doubles fields required
+        document.getElementById('partner_netid').required = true;
+        document.getElementById('opponent1_netid').required = true;
+        document.getElementById('opponent2_netid').required = true;
+      }
+    });
+  });
   
-  searchInput.addEventListener('input', (e) => {
-    clearTimeout(searchTimeout);
-    const query = e.target.value.trim();
+  // Player search functionality (reusable)
+  function setupPlayerSearch(searchInputId, resultsId, netidInputId, selectedDivId, valueTargetId = null) {
+    const searchInput = document.getElementById(searchInputId);
+    const resultsDiv = document.getElementById(resultsId);
+    const netidInput = document.getElementById(netidInputId);
+    const selectedDiv = document.getElementById(selectedDivId);
+    let searchTimeout;
     
-    if (query.length < 2) {
-      resultsDiv.innerHTML = '';
-      resultsDiv.style.display = 'none';
-      return;
-    }
-    
-    searchTimeout = setTimeout(() => {
-      fetch(`/users/search?q=${encodeURIComponent(query)}`)
-        .then(response => response.json())
-        .then(users => {
-          if (users.length === 0) {
-            resultsDiv.innerHTML = '<div class="search-result-item">No users found</div>';
+    searchInput.addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      const query = e.target.value.trim();
+      
+      if (query.length < 2) {
+        resultsDiv.innerHTML = '';
+        resultsDiv.style.display = 'none';
+        return;
+      }
+      
+      searchTimeout = setTimeout(() => {
+        fetch(`/users/search?q=${encodeURIComponent(query)}`)
+          .then(response => response.json())
+          .then(users => {
+            if (users.length === 0) {
+              resultsDiv.innerHTML = '<div class="search-result-item">No users found</div>';
+              resultsDiv.style.display = 'block';
+              return;
+            }
+            
+            resultsDiv.innerHTML = users.map(user => `
+              <div class="search-result-item" data-netid="${user.netid}" data-name="${user.name}" data-elo="${user.elo}">
+                <strong>${user.name}</strong> (${user.netid})
+              </div>
+            `).join('');
             resultsDiv.style.display = 'block';
-            return;
-          }
-          
-          resultsDiv.innerHTML = users.map(user => `
-            <div class="search-result-item" data-netid="${user.netid}" data-name="${user.name}" data-elo="${user.elo}">
-              <strong>${user.name}</strong> (${user.netid})
-            </div>
-          `).join('');
-          resultsDiv.style.display = 'block';
-          
-          // Add click handlers
-          document.querySelectorAll('.search-result-item[data-netid]').forEach(item => {
-            item.addEventListener('click', () => {
-              selectedOpponent = {
-                netid: item.dataset.netid,
-                name: item.dataset.name,
-                elo: item.dataset.elo
-              };
-              selectOpponent();
+            
+            // Add click handlers
+            resultsDiv.querySelectorAll('.search-result-item[data-netid]').forEach(item => {
+              item.addEventListener('click', () => {
+                const selected = {
+                  netid: item.dataset.netid,
+                  name: item.dataset.name,
+                  elo: item.dataset.elo
+                };
+                selectPlayer(selected);
+              });
             });
           });
-        });
-    }, 300);
-  });
-  
-  function selectOpponent() {
-    if (!selectedOpponent) return;
+      }, 300);
+    });
     
-    opponentNetidInput.value = selectedOpponent.netid;
-    opponentWonRadio.value = selectedOpponent.netid;
-    searchInput.value = '';
-    resultsDiv.innerHTML = '';
-    resultsDiv.style.display = 'none';
+    function selectPlayer(player) {
+      netidInput.value = player.netid;
+      if (valueTargetId) {
+        document.getElementById(valueTargetId).value = player.netid;
+      }
+      searchInput.value = '';
+      resultsDiv.innerHTML = '';
+      resultsDiv.style.display = 'none';
+      
+      selectedDiv.innerHTML = `
+        <div class="selected-opponent-card">
+          <strong>${player.name}</strong> (${player.netid})
+          <button type="button" class="clear-btn" onclick="clearPlayer('${netidInputId}', '${selectedDivId}', '${valueTargetId || ''}')">×</button>
+        </div>
+      `;
+      selectedDiv.style.display = 'block';
+    }
     
-    selectedOpponentDiv.innerHTML = `
-      <div class="selected-opponent-card">
-        <strong>${selectedOpponent.name}</strong> (${selectedOpponent.netid})
-        <button type="button" class="clear-btn" onclick="clearOpponent()">×</button>
-      </div>
-    `;
-    selectedOpponentDiv.style.display = 'block';
+    // Hide results when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+        resultsDiv.style.display = 'none';
+      }
+    });
   }
   
-  window.clearOpponent = () => {
-    selectedOpponent = null;
-    opponentNetidInput.value = '';
-    selectedOpponentDiv.innerHTML = '';
-    selectedOpponentDiv.style.display = 'none';
+  // Global clear function
+  window.clearPlayer = (netidInputId, selectedDivId, valueTargetId) => {
+    document.getElementById(netidInputId).value = '';
+    document.getElementById(selectedDivId).innerHTML = '';
+    document.getElementById(selectedDivId).style.display = 'none';
+    if (valueTargetId && document.getElementById(valueTargetId)) {
+      document.getElementById(valueTargetId).value = '';
+    }
   };
   
-  // Hide results when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
-      resultsDiv.style.display = 'none';
-    }
-  });
+  // Setup search for singles
+  setupPlayerSearch('opponent_search', 'search_results', 'opponent_netid', 'selected_opponent', 'opponent_won');
+  
+  // Setup search for doubles
+  setupPlayerSearch('partner_search', 'partner_search_results', 'partner_netid', 'selected_partner');
+  setupPlayerSearch('opponent1_search', 'opponent1_search_results', 'opponent1_netid', 'selected_opponent1');
+  setupPlayerSearch('opponent2_search', 'opponent2_search_results', 'opponent2_netid', 'selected_opponent2');
 });
 </script>
 {% endblock %}

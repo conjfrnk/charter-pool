@@ -34,21 +34,43 @@ class User(db.Model):
         return not self.first_name or not self.last_name
     
     def get_all_games(self):
-        """Get all games this user participated in"""
+        """Get all games this user participated in (singles and doubles)"""
         return Game.query.filter(
-            (Game.player1_netid == self.netid) | (Game.player2_netid == self.netid)
+            (Game.player1_netid == self.netid) | 
+            (Game.player2_netid == self.netid) |
+            (Game.player3_netid == self.netid) | 
+            (Game.player4_netid == self.netid)
         ).order_by(Game.timestamp.desc()).all()
     
     def get_win_count(self):
-        """Get number of games won"""
-        return Game.query.filter(Game.winner_netid == self.netid).count()
+        """Get number of games won (singles and doubles)"""
+        # For singles: winner_netid matches user
+        # For doubles: user is on winning team
+        wins = 0
+        for game in self.get_all_games():
+            if game.is_doubles():
+                # Check if user is on winning team
+                if self.netid in game.get_winning_team_netids():
+                    wins += 1
+            else:
+                # Singles game
+                if game.winner_netid == self.netid:
+                    wins += 1
+        return wins
     
     def get_loss_count(self):
-        """Get number of games lost"""
-        return Game.query.filter(
-            ((Game.player1_netid == self.netid) | (Game.player2_netid == self.netid)) &
-            (Game.winner_netid != self.netid)
-        ).count()
+        """Get number of games lost (singles and doubles)"""
+        losses = 0
+        for game in self.get_all_games():
+            if game.is_doubles():
+                # Check if user is on losing team
+                if self.netid in game.get_losing_team_netids():
+                    losses += 1
+            else:
+                # Singles game
+                if game.winner_netid != self.netid:
+                    losses += 1
+        return losses
     
     def get_win_rate(self):
         """Calculate win rate percentage"""
@@ -91,21 +113,67 @@ class Game(db.Model):
     __tablename__ = 'games'
     
     id = db.Column(db.Integer, primary_key=True)
+    game_type = db.Column(db.String(20), default='singles', nullable=False)  # 'singles' or 'doubles'
     player1_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=False)
     player2_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=False)
+    player3_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=True)  # Team 2, Player 1 (for doubles)
+    player4_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=True)  # Team 2, Player 2 (for doubles)
     winner_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=True)
-    elo_change = db.Column(db.Integer, nullable=False)  # ELO change for the winner
+    elo_change = db.Column(db.Integer, nullable=False)  # ELO change for the winner(s)
     
     def __repr__(self):
         return f'Game {self.id}'
     
+    def is_doubles(self):
+        """Check if this is a doubles game"""
+        return self.game_type == 'doubles'
+    
+    def get_team1_netids(self):
+        """Get Team 1 player netids (always player1 and player2)"""
+        return [self.player1_netid, self.player2_netid]
+    
+    def get_team2_netids(self):
+        """Get Team 2 player netids (player3 and player4 for doubles, empty for singles)"""
+        if self.is_doubles():
+            return [self.player3_netid, self.player4_netid]
+        return []
+    
+    def get_winning_team_netids(self):
+        """Get the netids of the winning team/player"""
+        if self.is_doubles():
+            # For doubles, winner_netid represents one player, find their team
+            if self.winner_netid in self.get_team1_netids():
+                return self.get_team1_netids()
+            else:
+                return self.get_team2_netids()
+        else:
+            return [self.winner_netid]
+    
+    def get_losing_team_netids(self):
+        """Get the netids of the losing team/player"""
+        if self.is_doubles():
+            winning_team = self.get_winning_team_netids()
+            if self.winner_netid in self.get_team1_netids():
+                return self.get_team2_netids()
+            else:
+                return self.get_team1_netids()
+        else:
+            return [self.get_loser_netid()]
+    
     def get_loser_netid(self):
-        """Get the netid of the loser"""
+        """Get the netid of the loser (singles only, for backward compatibility)"""
         if self.winner_netid == self.player1_netid:
             return self.player2_netid
         return self.player1_netid
+    
+    def get_all_player_netids(self):
+        """Get all players in the game"""
+        players = [self.player1_netid, self.player2_netid]
+        if self.is_doubles():
+            players.extend([self.player3_netid, self.player4_netid])
+        return players
 
 
 class Tournament(db.Model):

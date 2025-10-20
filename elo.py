@@ -56,3 +56,60 @@ def update_ratings_after_game(winner, loser, k_factor=32):
     
     return winner_change
 
+def calculate_team_average_rating(player1_rating, player2_rating):
+    """
+    Calculate the average rating for a team of 2 players
+    
+    Args:
+        player1_rating: ELO rating of first player
+        player2_rating: ELO rating of second player
+    
+    Returns:
+        Average rating (rounded to nearest integer)
+    """
+    return round((player1_rating + player2_rating) / 2)
+
+def update_ratings_after_doubles_game(team1_players, team2_players, winning_team, k_factor=32):
+    """
+    Update ELO ratings for all 4 players after a doubles game
+    Uses team average rating for calculation
+    
+    Args:
+        team1_players: List of 2 User objects (team 1)
+        team2_players: List of 2 User objects (team 2)
+        winning_team: Either 1 or 2 (which team won)
+        k_factor: K-factor for ELO calculation (default 32)
+    
+    Returns:
+        The ELO change amount (positive integer for winners)
+    """
+    # Calculate team average ratings
+    team1_avg = calculate_team_average_rating(
+        team1_players[0].elo_rating,
+        team1_players[1].elo_rating
+    )
+    team2_avg = calculate_team_average_rating(
+        team2_players[0].elo_rating,
+        team2_players[1].elo_rating
+    )
+    
+    # Calculate ELO changes based on team averages
+    if winning_team == 1:
+        winner_change, loser_change = calculate_elo_change(team1_avg, team2_avg, k_factor)
+        # Apply changes to team 1 (winners)
+        team1_players[0].elo_rating += winner_change
+        team1_players[1].elo_rating += winner_change
+        # Apply changes to team 2 (losers)
+        team2_players[0].elo_rating += loser_change
+        team2_players[1].elo_rating += loser_change
+    else:  # winning_team == 2
+        winner_change, loser_change = calculate_elo_change(team2_avg, team1_avg, k_factor)
+        # Apply changes to team 2 (winners)
+        team2_players[0].elo_rating += winner_change
+        team2_players[1].elo_rating += winner_change
+        # Apply changes to team 1 (losers)
+        team1_players[0].elo_rating += loser_change
+        team1_players[1].elo_rating += loser_change
+    
+    return abs(winner_change)
+

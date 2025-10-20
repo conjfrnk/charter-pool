@@ -1072,3 +1072,56 @@ table tr.highlight {
     font-size: 80px;
   }
 }
+
+/* Game Type Badges */
+.game-type-badge-small {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.game-type-badge-small.singles {
+  background-color: #3498db;
+  color: white;
+}
+
+.game-type-badge-small.doubles {
+  background-color: #e67e22;
+  color: white;
+}
+
+/* Doubles Game Display */
+.doubles-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.team-label {
+  font-size: 14px;
+}
+
+.team-label.winner {
+  font-weight: 600;
+  color: #28a745;
+}
+
+.vs-text {
+  color: #999;
+  margin: 0 4px;
+  font-size: 13px;
+}
+
+/* Game Type Form Sections */
+.game-type-form {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid #f0f0f0;
+}
