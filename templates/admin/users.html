@@ -17,6 +17,7 @@
   
   <div class="admin-section">
     <h3>Active Users ({{ active_users|length }})</h3>
+    <p class="help-text">Users who have completed their profile and are visible on the leaderboard.</p>
     {% if active_users %}
     <table class="admin-table">
       <thead>
@@ -31,14 +32,9 @@
       </thead>
       <tbody>
         {% for user in active_users %}
-        <tr {% if user.needs_profile_setup %}class="incomplete-profile"{% endif %}>
+        <tr>
           <td>{{ user.netid }}</td>
-          <td>
-            {{ user.full_name }}
-            {% if user.needs_profile_setup %}
-              <span class="badge badge-warning">Profile Incomplete</span>
-            {% endif %}
-          </td>
+          <td>{{ user.full_name }}</td>
           <td>{{ user.elo_rating }}</td>
           <td>{{ user.get_all_games()|length }}</td>
           <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
@@ -60,6 +56,41 @@
     <p>No active users.</p>
     {% endif %}
   </div>
+  
+  {% if inactive_users %}
+  <div class="admin-section">
+    <h3>Inactive Users ({{ inactive_users|length }})</h3>
+    <p class="help-text">Users who have been added but have not completed their profile. These users are not visible on the leaderboard.</p>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>NetID</th>
+          <th>Status</th>
+          <th>ELO Rating</th>
+          <th>Added</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in inactive_users %}
+        <tr class="incomplete-profile">
+          <td>{{ user.netid }}</td>
+          <td>
+            <span class="badge badge-inactive">Pending Activation</span>
+          </td>
+          <td>{{ user.elo_rating }}</td>
+          <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+          <td class="actions-cell">
+            <form method="POST" action="{{ url_for('admin_delete_user', netid=user.netid) }}" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this user permanently? They have not logged in yet.')">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
   
   {% if archived_users %}
   <div class="admin-section">

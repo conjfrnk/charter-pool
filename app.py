@@ -151,11 +151,11 @@ def index():
     user = get_current_user()
     recent_games = user.get_all_games()[:10]
     
-    # Get leaderboard (top 10)
-    leaderboard = User.query.filter_by(archived=False).order_by(desc(User.elo_rating)).limit(10).all()
+    # Get leaderboard (top 10) - only active users
+    leaderboard = User.query.filter_by(archived=False, is_active=True).order_by(desc(User.elo_rating)).limit(10).all()
     
-    # Get user's rank
-    user_rank = User.query.filter(User.elo_rating > user.elo_rating, User.archived == False).count() + 1
+    # Get user's rank (among active users only)
+    user_rank = User.query.filter(User.elo_rating > user.elo_rating, User.archived == False, User.is_active == True).count() + 1
     
     # Get open tournaments
     open_tournaments = Tournament.query.filter_by(status='open').order_by(desc(Tournament.created_at)).all()
@@ -202,6 +202,10 @@ def report_game():
             
             if opponent.archived:
                 flash("Cannot report games with archived users.", "error")
+                return redirect(url_for('report_game'))
+            
+            if not opponent.is_active:
+                flash("Cannot report games with inactive users. The user must complete their profile first.", "error")
                 return redirect(url_for('report_game'))
             
             if opponent_netid == user.netid:
@@ -263,6 +267,11 @@ def report_game():
             # Check for archived users
             if partner.archived or opponent1.archived or opponent2.archived:
                 flash("Cannot report games with archived users.", "error")
+                return redirect(url_for('report_game'))
+            
+            # Check for inactive users
+            if not partner.is_active or not opponent1.is_active or not opponent2.is_active:
+                flash("Cannot report games with inactive users. All users must complete their profiles first.", "error")
                 return redirect(url_for('report_game'))
             
             # Validate all 4 players are unique
@@ -338,7 +347,12 @@ def game_history():
 @login_required
 def leaderboard():
     """Full ELO leaderboard"""
-    users = User.query.filter_by(archived=False).order_by(desc(User.elo_rating)).all()
+    if current_user.is_admin:
+        # Admins can see all users (including inactive ones)
+        users = User.query.filter_by(archived=False).order_by(desc(User.elo_rating)).all()
+    else:
+        # Regular users only see active users
+        users = User.query.filter_by(archived=False, is_active=True).order_by(desc(User.elo_rating)).all()
     return render_template("leaderboard.html", users=users)
 
 @app.route("/users/search")
@@ -351,13 +365,15 @@ def search_users():
         return jsonify([])
     
     # Search by netid, first name, or last name
+    # Only show active users (admins can see all via admin panel)
     users = User.query.filter(
         or_(
             User.netid.ilike(f"%{query}%"),
             User.first_name.ilike(f"%{query}%"),
             User.last_name.ilike(f"%{query}%")
         ),
-        User.archived == False
+        User.archived == False,
+        User.is_active == True
     ).limit(10).all()
     
     results = [{
@@ -585,8 +601,9 @@ def admin_dashboard():
     admin = get_current_admin()
     
     # Statistics
-    total_users = User.query.count()
-    active_users = User.query.filter_by(archived=False).count()
+    total_users = User.query.filter_by(archived=False).count()
+    active_users = User.query.filter_by(archived=False, is_active=True).count()
+    inactive_users = User.query.filter_by(archived=False, is_active=False).count()
     total_games = Game.query.count()
     total_tournaments = Tournament.query.count()
     active_tournaments = Tournament.query.filter_by(status='active').count()
@@ -598,6 +615,7 @@ def admin_dashboard():
         admin=admin,
         total_users=total_users,
         active_users=active_users,
+        inactive_users=inactive_users,
         total_games=total_games,
         total_tournaments=total_tournaments,
         active_tournaments=active_tournaments,
@@ -612,12 +630,15 @@ def admin_users():
         flash("You must be an admin to access this page.", "error")
         return redirect(url_for('index'))
     
-    active_users = User.query.filter_by(archived=False).order_by(User.netid).all()
+    # Separate active users (profile completed) and inactive users (profile not completed)
+    active_users = User.query.filter_by(archived=False, is_active=True).order_by(User.netid).all()
+    inactive_users = User.query.filter_by(archived=False, is_active=False).order_by(User.netid).all()
     archived_users = User.query.filter_by(archived=True).order_by(User.netid).all()
     
     return render_template(
         "admin/users.html",
         active_users=active_users,
+        inactive_users=inactive_users,
         archived_users=archived_users
     )
 

@@ -23,8 +23,14 @@
         <td>
           {% if user.first_name and user.last_name %}
             {{ user.full_name }}
+            {% if current_admin and not user.is_active %}
+              <span class="badge badge-inactive">Inactive</span>
+            {% endif %}
           {% else %}
             <span class="incomplete-name">{{ user.netid }}</span>
+            {% if current_admin %}
+              <span class="badge badge-inactive">Inactive</span>
+            {% endif %}
           {% endif %}
         </td>
         <td>{{ user.netid }}</td>

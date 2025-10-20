@@ -901,6 +901,11 @@ table tr.highlight {
   color: #333;
 }
 
+.badge-inactive {
+  background-color: #6c757d;
+  color: #fff;
+}
+
 .help-text {
   color: #666;
   font-size: 14px;

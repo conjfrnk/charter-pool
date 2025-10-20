@@ -41,7 +41,7 @@ def load_user(user_id):
         else:
             # Regular user session
             user = User.query.get(user_id)
-            if user and not user.archived:
+            if user and not user.archived and user.is_active:
                 return UserSession(user.netid)
     except Exception as e:
         print(f"[ERROR] Failed to load user from session (user_id={user_id}): {e}")
@@ -145,6 +145,10 @@ def create_user(netid, first_name=None, last_name=None):
     if last_name:
         user.last_name = last_name.strip()
     
+    # Set is_active to True only if both names are provided
+    if first_name and last_name:
+        user.is_active = True
+    
     db.session.add(user)
     db.session.commit()
     
@@ -163,6 +167,7 @@ def complete_user_profile(user, first_name, last_name):
     
     user.first_name = first_name
     user.last_name = last_name
+    user.is_active = True  # Activate user when profile is completed
     db.session.commit()
     
     return True, user

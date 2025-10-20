@@ -13,6 +13,7 @@ class User(db.Model):
     elo_rating = db.Column(db.Integer, default=1200, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     archived = db.Column(db.Boolean, default=False, nullable=False)
+    is_active = db.Column(db.Boolean, default=False, nullable=False)  # True when user has completed profile setup
     
     # Relationships
     games_as_player1 = db.relationship('Game', foreign_keys='Game.player1_netid', backref='player1', lazy='dynamic')
@@ -31,7 +32,7 @@ class User(db.Model):
     @property
     def needs_profile_setup(self):
         """Check if user needs to complete their profile"""
-        return not self.first_name or not self.last_name
+        return not self.is_active
     
     def get_all_games(self):
         """Get all games this user participated in (singles and doubles)"""
