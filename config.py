@@ -8,7 +8,12 @@ class Config:
     try:
         with open(secret_path, "r") as f:
             SECRET_KEY = f.read().strip()
+            print(f"[INFO] Loaded SECRET_KEY from {secret_path}")
     except FileNotFoundError:
+        print(f"[WARNING] secrets.txt not found at {secret_path}, using fallback")
+        SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
+    except Exception as e:
+        print(f"[ERROR] Failed to read secrets.txt: {e}")
         SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     
     # Database configuration

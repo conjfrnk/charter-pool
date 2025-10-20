@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_talisman import Talisman
 from flask_login import login_required, logout_user, current_user
-from sqlalchemy import or_, desc
+from sqlalchemy import or_, desc, text
 
 from config import Config
 from models import db, User, Admin, Game, Tournament, TournamentParticipant, TournamentMatch
@@ -16,12 +16,28 @@ from tournament_logic import activate_tournament, report_match_result
 app = Flask(__name__)
 app.config.from_object(Config)
 
+print(f"[INFO] Flask app initialized")
+print(f"[INFO] Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
+print(f"[INFO] Secret key configured: {bool(app.config.get('SECRET_KEY'))}")
+print(f"[INFO] Template folder: {app.template_folder}")
+print(f"[INFO] Static folder: {app.static_folder}")
+
 # Initialize extensions
 db.init_app(app)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 logging.basicConfig(level=logging.INFO)
+
+# Test database connection on startup
+with app.app_context():
+    try:
+        db.engine.connect()
+        print("[INFO] Database connection successful")
+    except Exception as e:
+        print(f"[ERROR] Database connection failed: {e}")
+        import traceback
+        traceback.print_exc()
 
 csp = {
     "default-src": ["'self'"],
@@ -719,19 +735,54 @@ def inject_version():
         version_path = os.path.join(os.path.dirname(__file__), "VERSION")
         with open(version_path, "r") as vf:
             version = vf.read().strip()
-    except Exception:
+    except Exception as e:
+        print(f"[WARNING] Could not read VERSION file: {e}")
         version = "unknown"
     return {"version": version}
 
 @app.context_processor
 def inject_user():
     """Inject current user/admin into all templates"""
-    if current_user.is_authenticated:
-        if current_user.is_admin:
-            return {"current_admin": get_current_admin(), "current_user": None}
-        else:
-            return {"current_user": get_current_user(), "current_admin": None}
+    try:
+        if current_user.is_authenticated:
+            if current_user.is_admin:
+                admin = get_current_admin()
+                return {"current_admin": admin, "current_user": None}
+            else:
+                user = get_current_user()
+                return {"current_user": user, "current_admin": None}
+    except Exception as e:
+        print(f"[WARNING] Error in inject_user context processor: {e}")
+        import traceback
+        traceback.print_exc()
     return {"current_user": None, "current_admin": None}
+
+@app.route("/health")
+def health_check():
+    """Health check endpoint for monitoring"""
+    checks = {
+        "status": "ok",
+        "database": "unknown",
+        "templates": "unknown"
+    }
+    
+    # Check database
+    try:
+        db.session.execute(text("SELECT 1"))
+        checks["database"] = "ok"
+    except Exception as e:
+        checks["database"] = f"error: {str(e)}"
+        checks["status"] = "degraded"
+    
+    # Check templates
+    try:
+        app.jinja_env.get_template("login.html")
+        checks["templates"] = "ok"
+    except Exception as e:
+        checks["templates"] = f"error: {str(e)}"
+        checks["status"] = "degraded"
+    
+    return jsonify(checks), 200 if checks["status"] == "ok" else 503
 
 @app.errorhandler(404)
 def not_found_error(error):
@@ -739,11 +790,31 @@ def not_found_error(error):
 
 @app.errorhandler(500)
 def internal_error(error):
-    print(f"[DEBUG] 500 ERROR CAUGHT: {error}")
+    print(f"[ERROR] 500 Internal Server Error: {error}")
     import traceback
     traceback.print_exc()
-    db.session.rollback()
-    return render_template('errors/500.html'), 500
+    
+    try:
+        db.session.rollback()
+    except Exception as e:
+        print(f"[ERROR] Failed to rollback database session: {e}")
+    
+    try:
+        return render_template('errors/500.html'), 500
+    except Exception as e:
+        print(f"[ERROR] Failed to render 500 error template: {e}")
+        # Fallback to plain HTML if template rendering fails
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head><title>500 Internal Server Error</title></head>
+        <body>
+            <h1>500 Internal Server Error</h1>
+            <p>Something went wrong. Please try again later.</p>
+            <p><a href="/">Go Home</a></p>
+        </body>
+        </html>
+        """, 500
 
 if __name__ == "__main__":
     app.run(debug=True)

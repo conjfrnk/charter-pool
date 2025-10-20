@@ -30,17 +30,22 @@ class AdminSession(UserMixin):
 @login_manager.user_loader
 def load_user(user_id):
     """Load user from session"""
-    if user_id.startswith('admin_'):
-        # Admin session
-        admin_id = int(user_id.replace('admin_', ''))
-        admin = Admin.query.get(admin_id)
-        if admin:
-            return AdminSession(admin.id, admin.username)
-    else:
-        # Regular user session
-        user = User.query.get(user_id)
-        if user and not user.archived:
-            return UserSession(user.netid)
+    try:
+        if user_id.startswith('admin_'):
+            # Admin session
+            admin_id = int(user_id.replace('admin_', ''))
+            admin = Admin.query.get(admin_id)
+            if admin:
+                return AdminSession(admin.id, admin.username)
+        else:
+            # Regular user session
+            user = User.query.get(user_id)
+            if user and not user.archived:
+                return UserSession(user.netid)
+    except Exception as e:
+        print(f"[ERROR] Failed to load user from session (user_id={user_id}): {e}")
+        import traceback
+        traceback.print_exc()
     return None
 
 def get_current_user():
