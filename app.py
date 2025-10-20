@@ -101,8 +101,12 @@ def profile_setup():
     if not netid:
         return redirect(url_for('login'))
     
-    # Check if user exists
+    # Check if user exists - only admin-created users can set up profiles
     existing_user = User.query.get(netid)
+    
+    if not existing_user:
+        flash("Account not found. Please contact an administrator to create your account.", "error")
+        return redirect(url_for('login'))
     
     if request.method == "POST":
         first_name = request.form.get("first_name", "").strip()
@@ -112,17 +116,15 @@ def profile_setup():
             flash("First and last name are required.", "error")
             return render_template("profile_setup.html", netid=netid)
         
-        if existing_user:
-            # User exists (added by admin), complete their profile
-            from auth import complete_user_profile
-            success, result = complete_user_profile(existing_user, first_name, last_name)
-        else:
-            # Brand new user, create account
-            success, result = create_user(netid, first_name, last_name)
+        # User exists (added by admin), complete their profile
+        from auth import complete_user_profile, UserSession
+        success, result = complete_user_profile(existing_user, first_name, last_name)
         
         if success:
-            # Log the user in
-            login_user_by_netid(netid)
+            # Log the user in directly with UserSession
+            from flask_login import login_user
+            session_user = UserSession(result.netid)
+            login_user(session_user, remember=True)
             flash(f"Welcome to Charter Pool, {result.full_name}!", "success")
             return redirect(url_for('index'))
         else:

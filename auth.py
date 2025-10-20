@@ -90,8 +90,8 @@ def login_user_by_netid(netid):
         login_user(session_user, remember=True)
         return True, user, False
     else:
-        # New user, needs to set up profile
-        return True, netid, True
+        # User not found - admin must create account first
+        return False, "NetID not found. Please contact an administrator to create your account.", False
 
 def login_admin(username, password):
     """
