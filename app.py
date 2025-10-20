@@ -647,7 +647,8 @@ def admin_users():
 @login_required
 def admin_add_user():
     """Add new user(s) - supports bulk add with space or comma separation"""
-    print(f"[DEBUG] admin_add_user called by {current_user.id if current_user.is_authenticated else 'unknown'}")
+    user_id = getattr(current_user, 'admin_id', getattr(current_user, 'netid', 'unknown'))
+    print(f"[DEBUG] admin_add_user called by {user_id} (is_admin={getattr(current_user, 'is_admin', False)})")
     
     if not current_user.is_admin:
         print(f"[DEBUG] Unauthorized access attempt")
