@@ -38,6 +38,14 @@ Talisman(
 )
 
 # ============================================================================
+# DEBUG MIDDLEWARE
+# ============================================================================
+
+@app.before_request
+def log_request():
+    print(f"[DEBUG] Request: {request.method} {request.path}")
+
+# ============================================================================
 # USER AUTHENTICATION ROUTES
 # ============================================================================
 
@@ -724,6 +732,9 @@ def not_found_error(error):
 
 @app.errorhandler(500)
 def internal_error(error):
+    print(f"[DEBUG] 500 ERROR CAUGHT: {error}")
+    import traceback
+    traceback.print_exc()
     db.session.rollback()
     return render_template('errors/500.html'), 500
 
