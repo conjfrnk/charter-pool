@@ -1001,23 +1001,39 @@ def internal_error(error):
     import traceback
     traceback.print_exc()
     
+    # Get error details
+    error_type = type(error).__name__
+    error_message = str(error)
+    
+    # Get traceback for admins
+    if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
+        tb = traceback.format_exc()
+    else:
+        tb = None
+    
     try:
         db.session.rollback()
+        print(f"[INFO] Database session rolled back")
     except Exception as e:
         print(f"[ERROR] Failed to rollback database session: {e}")
     
     try:
-        return render_template('errors/500.html'), 500
+        return render_template('errors/500.html', 
+                             error_type=error_type,
+                             error_message=error_message,
+                             traceback=tb), 500
     except Exception as e:
         print(f"[ERROR] Failed to render 500 error template: {e}")
         # Fallback to plain HTML if template rendering fails
-        return """
+        return f"""
         <!DOCTYPE html>
         <html>
         <head><title>500 Internal Server Error</title></head>
-        <body>
+        <body style="font-family: sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
             <h1>500 Internal Server Error</h1>
-            <p>Something went wrong. Please try again later.</p>
+            <h2>{error_type}</h2>
+            <p><strong>Error:</strong> {error_message}</p>
+            <p>Something went wrong. Please try again later or contact an administrator.</p>
             <p><a href="/">Go Home</a></p>
         </body>
         </html>
