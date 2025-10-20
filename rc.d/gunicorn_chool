@@ -14,7 +14,7 @@ daemon="${daemon_venv}/bin/gunicorn"
 pidfile="/var/run/gunicorn_chool.pid"
 
 # Use --graceful-timeout to restart workers that take too long
-daemon_flags="--daemon --pid ${pidfile} --chdir ${daemon_dir} --bind 127.0.0.1:5150 app:app --workers 6 --threads 4 --timeout 60 --graceful-timeout 30"
+daemon_flags="--daemon --pid ${pidfile} --chdir ${daemon_dir} --bind 127.0.0.1:5150 app:app --workers 6 --threads 4 --timeout 60 --graceful-timeout 30 --env PGUSER=charter_pool"
 
 rc_bg=NO
 
