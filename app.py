@@ -645,23 +645,56 @@ def admin_users():
 @app.route("/admin/users/add", methods=["POST"])
 @login_required
 def admin_add_user():
-    """Add a new user (NetID only - user will complete profile on first login)"""
+    """Add new user(s) - supports bulk add with space or comma separation"""
     if not current_user.is_admin:
         return jsonify({"error": "Unauthorized"}), 403
     
-    netid = request.form.get("netid", "").strip().lower()
+    netid_input = request.form.get("netid", "").strip()
     
-    if not netid:
+    if not netid_input:
         flash("NetID is required.", "error")
         return redirect(url_for('admin_users'))
     
-    # Create user with just NetID (no names yet)
-    success, result = create_user(netid)
+    # Parse input - split by commas and/or spaces
+    import re
+    netids = re.split(r'[,\s]+', netid_input)
+    netids = [n.strip().lower() for n in netids if n.strip()]
     
-    if success:
-        flash(f"User {result.netid} added successfully. They will complete their profile on first login.", "success")
-    else:
-        flash(result, "error")
+    if not netids:
+        flash("No valid NetIDs provided.", "error")
+        return redirect(url_for('admin_users'))
+    
+    # Add each user
+    added = []
+    skipped = []
+    errors = []
+    
+    for netid in netids:
+        success, result = create_user(netid)
+        if success:
+            added.append(netid)
+        else:
+            if "already exists" in result.lower():
+                skipped.append(netid)
+            else:
+                errors.append(f"{netid}: {result}")
+    
+    # Display results
+    if added:
+        if len(added) == 1:
+            flash(f"User {added[0]} added successfully. They will complete their profile on first login.", "success")
+        else:
+            flash(f"Added {len(added)} users: {', '.join(added)}. They will complete their profiles on first login.", "success")
+    
+    if skipped:
+        if len(skipped) == 1:
+            flash(f"User {skipped[0]} already exists.", "info")
+        else:
+            flash(f"Skipped {len(skipped)} existing users: {', '.join(skipped)}", "info")
+    
+    if errors:
+        for error in errors:
+            flash(error, "error")
     
     return redirect(url_for('admin_users'))
 

@@ -5,13 +5,14 @@
   <h2>Manage Users</h2>
   
   <div class="admin-section">
-    <h3>Add New User</h3>
-    <p class="help-text">Add a user by NetID. They will be prompted to enter their name on first login.</p>
+    <h3>Add New User(s)</h3>
+    <p class="help-text">Add one or more users by NetID. They will be prompted to enter their name on first login.</p>
+    <p class="help-text">For bulk add, separate NetIDs with spaces or commas (e.g., "jdoe, asmith bwilson")</p>
     <form method="POST" action="{{ url_for('admin_add_user') }}" class="admin-form inline-form">
       <div class="form-group">
-        <input type="text" name="netid" placeholder="NetID (e.g., jdoe)" required>
+        <input type="text" name="netid" placeholder="NetID(s) (e.g., jdoe, asmith, bwilson)" required>
       </div>
-      <button type="submit" class="btn btn-primary">Add User</button>
+      <button type="submit" class="btn btn-primary">Add User(s)</button>
     </form>
   </div>
   
