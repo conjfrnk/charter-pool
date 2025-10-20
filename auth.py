@@ -92,15 +92,29 @@ def login_admin(username, password):
     Login an admin by username and password
     Returns (success, admin_or_error_message)
     """
+    print(f"[DEBUG] login_admin called with username: {username}")
     admin = Admin.query.filter_by(username=username).first()
+    print(f"[DEBUG] Admin found: {admin is not None}")
     
-    if admin and admin.check_password(password):
-        from flask_login import login_user
-        session_admin = AdminSession(admin.id, admin.username)
-        login_user(session_admin, remember=True)
-        return True, admin
-    else:
-        return False, "Invalid username or password"
+    if admin:
+        print(f"[DEBUG] Admin username: {admin.username}, ID: {admin.id}")
+        print(f"[DEBUG] Checking password...")
+        try:
+            password_valid = admin.check_password(password)
+            print(f"[DEBUG] Password valid: {password_valid}")
+        except Exception as e:
+            print(f"[DEBUG] Password check error: {e}")
+            import traceback
+            traceback.print_exc()
+            return False, f"Password check error: {e}"
+        
+        if password_valid:
+            from flask_login import login_user
+            session_admin = AdminSession(admin.id, admin.username)
+            login_user(session_admin, remember=True)
+            return True, admin
+    
+    return False, "Invalid username or password"
 
 def create_user(netid, first_name=None, last_name=None):
     """

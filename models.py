@@ -71,10 +71,17 @@ class Admin(db.Model):
     created_tournaments = db.relationship('Tournament', backref='creator', lazy='dynamic')
     
     def set_password(self, password):
+        print(f"[DEBUG] set_password called for admin")
         self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+        print(f"[DEBUG] password_hash set: {self.password_hash[:50]}...")
     
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        print(f"[DEBUG] check_password called")
+        print(f"[DEBUG] stored hash: {self.password_hash[:50]}...")
+        print(f"[DEBUG] password to check: '{password}'")
+        result = check_password_hash(self.password_hash, password)
+        print(f"[DEBUG] check_password_hash result: {result}")
+        return result
     
     def __repr__(self):
         return self.username
