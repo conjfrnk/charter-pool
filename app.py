@@ -438,32 +438,39 @@ def report_tournament_match(tournament_id, match_id):
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     """Admin login page"""
-    print(f"[DEBUG] admin_login route called, method: {request.method}")
-    if current_user.is_authenticated and current_user.is_admin:
-        print("[DEBUG] User already authenticated as admin, redirecting")
-        return redirect(url_for('admin_dashboard'))
-    
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
-        print(f"[DEBUG] POST request - username: '{username}', password length: {len(password)}")
+    try:
+        print(f"[DEBUG] admin_login route called, method: {request.method}")
+        if current_user.is_authenticated and current_user.is_admin:
+            print("[DEBUG] User already authenticated as admin, redirecting")
+            return redirect(url_for('admin_dashboard'))
         
-        try:
-            success, result = login_admin(username, password)
-            print(f"[DEBUG] login_admin returned: success={success}, result={result}")
+        if request.method == "POST":
+            username = request.form.get("username", "").strip()
+            password = request.form.get("password", "")
+            print(f"[DEBUG] POST request - username: '{username}', password length: {len(password)}")
             
-            if success:
-                flash(f"Welcome, {result.username}!", "success")
-                return redirect(url_for('admin_dashboard'))
-            else:
-                flash(result, "error")
-        except Exception as e:
-            print(f"[DEBUG] Exception in admin_login: {e}")
-            import traceback
-            traceback.print_exc()
-            flash(f"Login error: {e}", "error")
-    
-    return render_template("admin/login.html")
+            try:
+                success, result = login_admin(username, password)
+                print(f"[DEBUG] login_admin returned: success={success}, result={result}")
+                
+                if success:
+                    flash(f"Welcome, {result.username}!", "success")
+                    return redirect(url_for('admin_dashboard'))
+                else:
+                    flash(result, "error")
+            except Exception as e:
+                print(f"[DEBUG] Exception in admin_login: {e}")
+                import traceback
+                traceback.print_exc()
+                flash(f"Login error: {e}", "error")
+        
+        print("[DEBUG] About to render admin/login.html")
+        return render_template("admin/login.html")
+    except Exception as e:
+        print(f"[DEBUG] EXCEPTION IN admin_login ROUTE: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 @app.route("/admin")
 @login_required
