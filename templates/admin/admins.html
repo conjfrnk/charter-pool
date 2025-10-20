@@ -12,6 +12,9 @@
       </div>
       <div class="form-group">
         <input type="password" name="password" placeholder="Password" required>
+        <small style="display: block; color: #666; margin-top: 5px;">
+          Password must be at least 8 characters with uppercase, lowercase, number, and special character
+        </small>
       </div>
       <button type="submit" class="btn btn-primary">Add Admin</button>
     </form>
@@ -32,12 +35,22 @@
         {% for admin in admins %}
         <tr>
           <td>{{ admin.id }}</td>
-          <td>{{ admin.username }}</td>
+          <td>
+            {{ admin.username }}
+            {% if admin.username == 'admin' %}
+            <span style="color: #666; font-size: 0.9em;">(protected)</span>
+            {% endif %}
+          </td>
           <td>{{ admin.created_at.strftime('%Y-%m-%d') }}</td>
           <td class="actions-cell">
             <button type="button" class="btn btn-sm btn-secondary" onclick="showPasswordForm({{ admin.id }}, '{{ admin.username }}')">
               Change Password
             </button>
+            {% if admin.username != 'admin' and admin.id != current_admin.id %}
+            <form method="POST" action="{{ url_for('admin_delete_admin', admin_id=admin.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete admin {{ admin.username }}?');">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -53,6 +66,9 @@
       <div class="form-group">
         <label for="new_password">New Password</label>
         <input type="password" id="new_password" name="new_password" required>
+        <small style="display: block; color: #666; margin-top: 5px;">
+          Password must be at least 8 characters with uppercase, lowercase, number, and special character
+        </small>
       </div>
       <button type="submit" class="btn btn-primary">Change Password</button>
       <button type="button" class="btn btn-secondary" onclick="hidePasswordForm()">Cancel</button>

@@ -8,7 +8,7 @@ from sqlalchemy import or_, desc, text
 
 from config import Config
 from models import db, User, Admin, Game, Tournament, TournamentParticipant, TournamentMatch
-from auth import login_manager, login_user_by_netid, login_admin, create_user, get_current_user, get_current_admin
+from auth import login_manager, login_user_by_netid, login_admin, create_user, get_current_user, get_current_admin, validate_admin_password
 from elo import update_ratings_after_game
 from tournament_logic import activate_tournament, report_match_result
 
@@ -631,6 +631,12 @@ def admin_add_admin():
         flash("Username and password are required.", "error")
         return redirect(url_for('admin_manage_admins'))
     
+    # Validate password strength
+    valid, error_message = validate_admin_password(password)
+    if not valid:
+        flash(error_message, "error")
+        return redirect(url_for('admin_manage_admins'))
+    
     # Check if username exists
     existing = Admin.query.filter_by(username=username).first()
     if existing:
@@ -655,6 +661,11 @@ def admin_change_password(admin_id):
     current_admin = get_current_admin()
     target_admin = Admin.query.get_or_404(admin_id)
     
+    # Don't allow changing password for the default admin user (unless it's themselves)
+    if target_admin.username == Config.DEFAULT_ADMIN_USERNAME and current_admin.id != target_admin.id:
+        flash("Cannot change password for the admin user.", "error")
+        return redirect(url_for('admin_manage_admins'))
+    
     # Only allow changing own password or if you're the default admin
     if current_admin.id != target_admin.id and current_admin.username != Config.DEFAULT_ADMIN_USERNAME:
         flash("You can only change your own password.", "error")
@@ -666,10 +677,42 @@ def admin_change_password(admin_id):
         flash("New password cannot be empty.", "error")
         return redirect(url_for('admin_manage_admins'))
     
+    # Validate password strength
+    valid, error_message = validate_admin_password(new_password)
+    if not valid:
+        flash(error_message, "error")
+        return redirect(url_for('admin_manage_admins'))
+    
     target_admin.set_password(new_password)
     db.session.commit()
     
     flash("Password changed successfully.", "success")
+    return redirect(url_for('admin_manage_admins'))
+
+@app.route("/admin/admins/<int:admin_id>/delete", methods=["POST"])
+@login_required
+def admin_delete_admin(admin_id):
+    """Delete an admin account"""
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    current_admin = get_current_admin()
+    target_admin = Admin.query.get_or_404(admin_id)
+    
+    # Don't allow deleting the default admin user
+    if target_admin.username == Config.DEFAULT_ADMIN_USERNAME:
+        flash("Cannot delete the admin user.", "error")
+        return redirect(url_for('admin_manage_admins'))
+    
+    # Don't allow deleting yourself
+    if current_admin.id == target_admin.id:
+        flash("Cannot delete your own account.", "error")
+        return redirect(url_for('admin_manage_admins'))
+    
+    db.session.delete(target_admin)
+    db.session.commit()
+    
+    flash(f"Admin {target_admin.username} deleted successfully.", "success")
     return redirect(url_for('admin_manage_admins'))
 
 @app.route("/admin/tournaments/create", methods=["GET", "POST"])
