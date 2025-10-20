@@ -53,12 +53,22 @@ Charter Pool provides a complete pool game management system with user authentic
 - Game history stored with timestamp and rating change
 - Games linked to tournaments when applicable
 
+**Game Deletion**
+- Users can delete their own recent games to correct errors
+- Games can only be deleted within 15 minutes of creation
+- Only casual games can be deleted (tournament games are protected)
+- Users can only delete games they participated in
+- ELO ratings are automatically reversed for all players
+- Confirmation dialog prevents accidental deletions
+- Delete button shown only for eligible games
+
 **Game History**
 - Complete game history for each user
 - View opponent, winner, ELO change, and timestamp
 - Admins can view all games across the platform
 - Recent games displayed on user dashboard (10 most recent)
 - Full history accessible via dedicated page
+- Delete buttons shown for eligible recent games
 
 ### Tournament System
 
@@ -594,6 +604,7 @@ sudo systemctl status charter-pool
 - `GET /games/report` - Game reporting form
 - `POST /games/report` - Submit game result
 - `GET /games/history` - View game history
+- `POST /games/<id>/delete` - Delete a recent game (within 15 min, non-tournament)
 - `GET /leaderboard` - Full ELO leaderboard
 - `GET /users/search?q=query` - AJAX user search (JSON)
 

@@ -346,6 +346,75 @@ def game_history():
     
     return render_template("game_history.html", games=games)
 
+@app.route("/games/<int:game_id>/delete", methods=["POST"])
+@login_required
+def delete_game(game_id):
+    """Delete a game if it was recent and user participated"""
+    if current_user.is_admin:
+        flash("Admins cannot delete games from this view. Contact system administrator for database operations.", "error")
+        return redirect(url_for('game_history'))
+    
+    user = get_current_user()
+    game = Game.query.get_or_404(game_id)
+    
+    # Check if user participated in the game
+    if user.netid not in game.get_all_player_netids():
+        flash("You can only delete games you participated in.", "error")
+        return redirect(url_for('game_history'))
+    
+    # Check if game is a tournament game
+    if game.tournament_id:
+        flash("Tournament games cannot be deleted.", "error")
+        return redirect(url_for('game_history'))
+    
+    # Check if game is recent (within 15 minutes)
+    time_diff = datetime.utcnow() - game.timestamp
+    if time_diff.total_seconds() > 900:  # 900 seconds = 15 minutes
+        flash("You can only delete games within 15 minutes of creation.", "error")
+        return redirect(url_for('game_history'))
+    
+    # Reverse ELO changes
+    try:
+        if game.is_doubles():
+            # For doubles, reverse ELO for all 4 players
+            player1 = User.query.get(game.player1_netid)
+            player2 = User.query.get(game.player2_netid)
+            player3 = User.query.get(game.player3_netid)
+            player4 = User.query.get(game.player4_netid)
+            
+            # Determine winning and losing teams
+            if game.winner_netid in game.get_team1_netids():
+                # Team 1 won
+                player1.elo_rating -= game.elo_change
+                player2.elo_rating -= game.elo_change
+                player3.elo_rating += game.elo_change
+                player4.elo_rating += game.elo_change
+            else:
+                # Team 2 won
+                player1.elo_rating += game.elo_change
+                player2.elo_rating += game.elo_change
+                player3.elo_rating -= game.elo_change
+                player4.elo_rating -= game.elo_change
+        else:
+            # For singles, reverse ELO for both players
+            winner = User.query.get(game.winner_netid)
+            loser_netid = game.get_loser_netid()
+            loser = User.query.get(loser_netid)
+            
+            winner.elo_rating -= game.elo_change
+            loser.elo_rating += game.elo_change
+        
+        # Delete the game
+        db.session.delete(game)
+        db.session.commit()
+        
+        flash("Game deleted successfully. ELO ratings have been reversed.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting game: {str(e)}", "error")
+    
+    return redirect(url_for('game_history'))
+
 @app.route("/leaderboard")
 @login_required
 def leaderboard():
@@ -948,6 +1017,13 @@ def inject_version():
         print(f"[WARNING] Could not read VERSION file: {e}")
         version = "unknown"
     return {"version": version}
+
+@app.context_processor
+def inject_utility_functions():
+    """Inject utility functions into templates"""
+    return {
+        "now": datetime.utcnow
+    }
 
 @app.context_processor
 def inject_user():
