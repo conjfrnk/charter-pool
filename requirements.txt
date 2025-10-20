@@ -2,6 +2,6 @@ flask
 flask-talisman
 flask-sqlalchemy
 flask-login
-psycopg2-binary
+psycopg2
 gunicorn
 werkzeug
