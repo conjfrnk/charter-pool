@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
@@ -656,7 +657,6 @@ def admin_add_user():
         return redirect(url_for('admin_users'))
     
     # Parse input - split by commas and/or spaces
-    import re
     netids = re.split(r'[,\s]+', netid_input)
     netids = [n.strip().lower() for n in netids if n.strip()]
     
