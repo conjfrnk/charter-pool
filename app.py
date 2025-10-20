@@ -4,9 +4,11 @@ import logging
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_talisman import Talisman
+from flask_compress import Compress
 from flask_login import login_required, logout_user, current_user
 from sqlalchemy import or_, desc, text
 from sqlalchemy.orm import joinedload
+from functools import wraps
 
 from config import Config
 from models import db, User, Admin, Game, Tournament, TournamentParticipant, TournamentMatch
@@ -29,7 +31,29 @@ db.init_app(app)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# Initialize Flask-Compress for response compression
+compress = Compress(app)
+
 logging.basicConfig(level=logging.INFO)
+
+# ============================================================================
+# ERROR HANDLING DECORATOR
+# ============================================================================
+
+def handle_db_errors(f):
+    """Decorator to handle database errors and rollback on failure"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Database error in {f.__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            flash("An error occurred. Please try again.", "error")
+            return redirect(request.referrer or url_for('index'))
+    return decorated_function
 
 # Test database connection on startup
 with app.app_context():
@@ -62,6 +86,22 @@ Talisman(
 @app.before_request
 def log_request():
     print(f"[DEBUG] Request: {request.method} {request.path}")
+
+@app.after_request
+def add_cache_headers(response):
+    """Add caching headers for static files"""
+    if request.path.startswith('/static/'):
+        # Cache static files for 1 year (with cache busting via version param)
+        response.cache_control.max_age = 31536000
+        response.cache_control.public = True
+    elif request.path == '/health':
+        # Don't cache health checks
+        response.cache_control.no_cache = True
+    else:
+        # Cache HTML pages for 5 minutes
+        response.cache_control.max_age = 300
+    
+    return response
 
 # ============================================================================
 # USER AUTHENTICATION ROUTES
@@ -201,11 +241,15 @@ def report_game():
         return redirect(url_for('admin_dashboard'))
     
     user = get_current_user()
+    if not user:
+        flash("User not found. Please log in again.", "error")
+        return redirect(url_for('login'))
     
     if request.method == "POST":
-        game_type = request.form.get("game_type", "singles").strip().lower()
-        
-        if game_type == "singles":
+        try:
+            game_type = request.form.get("game_type", "singles").strip().lower()
+            
+            if game_type == "singles":
             # Original singles game logic
             opponent_netid = request.form.get("opponent_netid", "").strip().lower()
             winner_netid = request.form.get("winner_netid", "").strip().lower()
@@ -340,8 +384,16 @@ def report_game():
                 flash(f"Doubles game recorded! Opponent team won ({elo_change} ELO each)", "success")
             return redirect(url_for('index'))
         
-        else:
-            flash("Invalid game type.", "error")
+            else:
+                flash("Invalid game type.", "error")
+                return redirect(url_for('report_game'))
+        
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error reporting game: {e}")
+            import traceback
+            traceback.print_exc()
+            flash("Error reporting game. Please try again.", "error")
             return redirect(url_for('report_game'))
     
     return render_template("report_game.html", user=user)
@@ -349,40 +401,81 @@ def report_game():
 @app.route("/games/history")
 @login_required
 def game_history():
-    """View game history"""
-    if current_user.is_admin:
-        # Show all games for admin with eager loading
-        games = Game.query.options(
-            joinedload(Game.player1),
-            joinedload(Game.player2)
-        ).order_by(desc(Game.timestamp)).limit(100).all()
-    else:
-        user = get_current_user()
-        # Get user's games with eager loading
-        games = Game.query.options(
-            joinedload(Game.player1),
-            joinedload(Game.player2)
-        ).filter(
-            or_(
-                Game.player1_netid == user.netid,
-                Game.player2_netid == user.netid,
-                Game.player3_netid == user.netid,
-                Game.player4_netid == user.netid
-            )
-        ).order_by(desc(Game.timestamp)).all()
-    
-    return render_template("game_history.html", games=games)
+    """View game history with pagination"""
+    try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        per_page = min(per_page, 100)  # Cap at 100 per page
+        
+        if current_user.is_admin:
+            # Show all games for admin with eager loading
+            games = Game.query.options(
+                joinedload(Game.player1),
+                joinedload(Game.player2)
+            ).order_by(desc(Game.timestamp)).limit(per_page).offset((page - 1) * per_page).all()
+            
+            total_games = Game.query.count()
+        else:
+            user = get_current_user()
+            if not user:
+                flash("User not found. Please log in again.", "error")
+                return redirect(url_for('login'))
+            
+            # Get user's games with eager loading and pagination
+            games = Game.query.options(
+                joinedload(Game.player1),
+                joinedload(Game.player2)
+            ).filter(
+                or_(
+                    Game.player1_netid == user.netid,
+                    Game.player2_netid == user.netid,
+                    Game.player3_netid == user.netid,
+                    Game.player4_netid == user.netid
+                )
+            ).order_by(desc(Game.timestamp)).limit(per_page).offset((page - 1) * per_page).all()
+            
+            total_games = Game.query.filter(
+                or_(
+                    Game.player1_netid == user.netid,
+                    Game.player2_netid == user.netid,
+                    Game.player3_netid == user.netid,
+                    Game.player4_netid == user.netid
+                )
+            ).count()
+        
+        total_pages = (total_games + per_page - 1) // per_page  # Ceiling division
+        
+        return render_template("game_history.html", 
+                             games=games, 
+                             page=page, 
+                             total_pages=total_pages,
+                             total_games=total_games)
+    except Exception as e:
+        logging.error(f"Error loading game history: {e}")
+        import traceback
+        traceback.print_exc()
+        flash("Error loading game history.", "error")
+        return redirect(url_for('index'))
 
 @app.route("/games/<int:game_id>/delete", methods=["POST"])
 @login_required
 def delete_game(game_id):
     """Delete a game if it was recent and user participated"""
-    if current_user.is_admin:
-        flash("Admins cannot delete games from this view. Contact system administrator for database operations.", "error")
-        return redirect(url_for('game_history'))
-    
-    user = get_current_user()
-    game = Game.query.get_or_404(game_id)
+    try:
+        if current_user.is_admin:
+            flash("Admins cannot delete games from this view. Contact system administrator for database operations.", "error")
+            return redirect(url_for('game_history'))
+        
+        user = get_current_user()
+        if not user:
+            flash("User not found. Please log in again.", "error")
+            return redirect(url_for('login'))
+        
+        game = Game.query.get(game_id)
+        if not game:
+            flash("Game not found.", "error")
+            return redirect(url_for('game_history'))
     
     # Check if user participated in the game
     if user.netid not in game.get_all_player_netids():
@@ -400,14 +493,18 @@ def delete_game(game_id):
         flash("You can only delete games within 15 minutes of creation.", "error")
         return redirect(url_for('game_history'))
     
-    # Reverse ELO changes
-    try:
+        # Reverse ELO changes
         if game.is_doubles():
             # For doubles, reverse ELO for all 4 players
             player1 = User.query.get(game.player1_netid)
             player2 = User.query.get(game.player2_netid)
             player3 = User.query.get(game.player3_netid)
             player4 = User.query.get(game.player4_netid)
+            
+            # Check all players exist
+            if not all([player1, player2, player3, player4]):
+                flash("Error: Some players not found.", "error")
+                return redirect(url_for('game_history'))
             
             # Determine winning and losing teams
             if game.winner_netid in game.get_team1_netids():
@@ -428,6 +525,10 @@ def delete_game(game_id):
             loser_netid = game.get_loser_netid()
             loser = User.query.get(loser_netid)
             
+            if not winner or not loser:
+                flash("Error: Players not found.", "error")
+                return redirect(url_for('game_history'))
+            
             winner.elo_rating -= game.elo_change
             loser.elo_rating += game.elo_change
         
@@ -436,11 +537,15 @@ def delete_game(game_id):
         db.session.commit()
         
         flash("Game deleted successfully. ELO ratings have been reversed.", "success")
+        return redirect(url_for('game_history'))
+        
     except Exception as e:
         db.session.rollback()
-        flash(f"Error deleting game: {str(e)}", "error")
-    
-    return redirect(url_for('game_history'))
+        logging.error(f"Error deleting game {game_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        flash(f"Error deleting game. Please try again.", "error")
+        return redirect(url_for('game_history'))
 
 @app.route("/leaderboard")
 @login_required
@@ -1039,7 +1144,7 @@ def admin_activate_tournament(tournament_id):
 
 @app.context_processor
 def inject_version():
-    """Inject version into all templates"""
+    """Inject version into all templates for cache busting"""
     try:
         version_path = os.path.join(os.path.dirname(__file__), "VERSION")
         with open(version_path, "r") as vf:
@@ -1047,7 +1152,12 @@ def inject_version():
     except Exception as e:
         print(f"[WARNING] Could not read VERSION file: {e}")
         version = "unknown"
-    return {"version": version}
+    
+    # Add cache busting parameter for static files
+    return {
+        "version": version,
+        "cache_bust": version.replace(".", "")  # Remove dots for URL param
+    }
 
 @app.context_processor
 def inject_utility_functions():
@@ -1108,6 +1218,24 @@ def health_check():
         checks["status"] = "degraded"
     
     return jsonify(checks), 200 if checks["status"] == "ok" else 503
+
+@app.errorhandler(400)
+def bad_request_error(error):
+    """Handle bad request errors"""
+    logging.warning(f"400 Bad Request: {error}")
+    try:
+        return render_template('errors/400.html'), 400
+    except Exception:
+        return "<h1>400 Bad Request</h1><p>The request could not be understood.</p>", 400
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    """Handle forbidden errors"""
+    logging.warning(f"403 Forbidden: {error}")
+    try:
+        return render_template('errors/403.html'), 403
+    except Exception:
+        return "<h1>403 Forbidden</h1><p>You don't have permission to access this resource.</p>", 403
 
 @app.errorhandler(404)
 def not_found_error(error):

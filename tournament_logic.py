@@ -11,7 +11,16 @@ def seed_participants(tournament):
     - New players (few games): Weight self-rating more heavily
     - Experienced players (many games): Use ELO primarily
     """
-    participants = tournament.participants.all()
+    try:
+        if not tournament:
+            raise ValueError("Tournament cannot be None")
+        
+        participants = tournament.participants.all()
+        if not participants:
+            return []
+    except Exception as e:
+        print(f"[ERROR] Failed to get tournament participants: {e}")
+        raise
     
     def calculate_seed_score(participant):
         """
@@ -241,65 +250,96 @@ def activate_tournament(tournament):
     """
     Activate a tournament and generate its bracket
     """
-    if tournament.status != 'open':
-        return False, "Tournament must be in 'open' status to activate"
-    
-    participant_count = tournament.get_participant_count()
-    if participant_count < 2:
-        return False, "Need at least 2 participants to start tournament"
+    try:
+        if not tournament:
+            return False, "Tournament not found"
+        
+        if tournament.status != 'open':
+            return False, "Tournament must be in 'open' status to activate"
+        
+        participant_count = tournament.get_participant_count()
+        if participant_count < 2:
+            return False, "Need at least 2 participants to start tournament"
+    except Exception as e:
+        print(f"[ERROR] Error checking tournament activation requirements: {e}")
+        return False, f"Error activating tournament: {str(e)}"
     
     # Generate bracket based on format
-    if tournament.format == 'single_elim':
-        success, message = create_single_elimination_bracket(tournament)
-    elif tournament.format == 'double_elim':
-        success, message = create_double_elimination_bracket(tournament)
-    elif tournament.format == 'round_robin':
-        success, message = create_round_robin_matches(tournament)
-    else:
-        return False, f"Unknown tournament format: {tournament.format}"
-    
-    if success:
-        tournament.status = 'active'
-        db.session.commit()
-        return True, f"Tournament activated. {message}"
-    
-    return False, message
+    try:
+        if tournament.format == 'single_elim':
+            success, message = create_single_elimination_bracket(tournament)
+        elif tournament.format == 'double_elim':
+            success, message = create_double_elimination_bracket(tournament)
+        elif tournament.format == 'round_robin':
+            success, message = create_round_robin_matches(tournament)
+        else:
+            return False, f"Unknown tournament format: {tournament.format}"
+        
+        if success:
+            tournament.status = 'active'
+            db.session.commit()
+            return True, f"Tournament activated. {message}"
+        
+        return False, message
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ERROR] Error generating tournament bracket: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, f"Error generating bracket: {str(e)}"
 
 def report_match_result(match, winner_netid, game_id):
     """
     Report the result of a tournament match
     Updates the match and advances bracket
     """
-    if match.completed:
-        return False, "This match has already been completed"
-    
-    if not match.is_ready():
-        return False, "Both players must be assigned before reporting result"
-    
-    if winner_netid not in [match.player1_netid, match.player2_netid]:
-        return False, "Winner must be one of the match participants"
+    try:
+        if not match:
+            return False, "Match not found"
+        
+        if match.completed:
+            return False, "This match has already been completed"
+        
+        if not match.is_ready():
+            return False, "Both players must be assigned before reporting result"
+        
+        if not winner_netid or winner_netid not in [match.player1_netid, match.player2_netid]:
+            return False, "Winner must be one of the match participants"
+    except Exception as e:
+        print(f"[ERROR] Error validating match result: {e}")
+        return False, f"Error validating match: {str(e)}"
     
     # Update match
-    match.winner_netid = winner_netid
-    match.game_id = game_id
-    match.completed = True
-    
-    # Advance bracket
-    tournament = match.tournament
-    loser_netid = match.player1_netid if winner_netid == match.player2_netid else match.player2_netid
-    
-    if tournament.format == 'single_elim':
-        advance_single_elimination(match, winner_netid, loser_netid)
-    elif tournament.format == 'double_elim':
-        advance_double_elimination(match, winner_netid, loser_netid)
-    # Round robin doesn't need advancement, all matches are predetermined
-    
-    db.session.commit()
-    
-    # Check if tournament is complete
-    check_tournament_completion(tournament)
-    
-    return True, "Match result recorded"
+    try:
+        match.winner_netid = winner_netid
+        match.game_id = game_id
+        match.completed = True
+        
+        # Advance bracket
+        tournament = match.tournament
+        if not tournament:
+            return False, "Tournament not found"
+        
+        loser_netid = match.player1_netid if winner_netid == match.player2_netid else match.player2_netid
+        
+        if tournament.format == 'single_elim':
+            advance_single_elimination(match, winner_netid, loser_netid)
+        elif tournament.format == 'double_elim':
+            advance_double_elimination(match, winner_netid, loser_netid)
+        # Round robin doesn't need advancement, all matches are predetermined
+        
+        db.session.commit()
+        
+        # Check if tournament is complete
+        check_tournament_completion(tournament)
+        
+        return True, "Match result recorded"
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ERROR] Error reporting match result: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, f"Error recording match: {str(e)}"
 
 def advance_single_elimination(match, winner_netid, loser_netid):
     """Advance winner to next round in single elimination"""

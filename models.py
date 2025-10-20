@@ -34,51 +34,74 @@ class User(db.Model):
         """Check if user needs to complete their profile"""
         return not self.is_active
     
-    def get_all_games(self):
-        """Get all games this user participated in (singles and doubles)"""
-        return Game.query.filter(
-            (Game.player1_netid == self.netid) | 
-            (Game.player2_netid == self.netid) |
-            (Game.player3_netid == self.netid) | 
-            (Game.player4_netid == self.netid)
-        ).order_by(Game.timestamp.desc()).all()
+    def get_all_games(self, limit=None):
+        """
+        Get all games this user participated in (singles and doubles)
+        
+        Args:
+            limit: Optional limit on number of games to return
+        """
+        try:
+            query = Game.query.filter(
+                (Game.player1_netid == self.netid) | 
+                (Game.player2_netid == self.netid) |
+                (Game.player3_netid == self.netid) | 
+                (Game.player4_netid == self.netid)
+            ).order_by(Game.timestamp.desc())
+            
+            if limit:
+                query = query.limit(limit)
+            
+            return query.all()
+        except Exception as e:
+            print(f"[ERROR] Failed to get games for user {self.netid}: {e}")
+            return []
     
     def get_game_stats(self):
         """
         Get game statistics efficiently (wins, losses, total) in a single pass.
         Returns a dict with 'wins', 'losses', 'total', and 'win_rate'.
         """
-        games = self.get_all_games()
-        total = len(games)
-        
-        if total == 0:
+        try:
+            games = self.get_all_games()
+            total = len(games)
+            
+            if total == 0:
+                return {'wins': 0, 'losses': 0, 'total': 0, 'win_rate': 0}
+            
+            wins = 0
+            for game in games:
+                try:
+                    # Defensive: check if game exists and has required fields
+                    if not game or not game.winner_netid:
+                        continue
+                        
+                    if game.is_doubles():
+                        # Check if user is on winning team
+                        winning_netids = game.get_winning_team_netids()
+                        if winning_netids and self.netid in winning_netids:
+                            wins += 1
+                    else:
+                        # Singles game
+                        if game.winner_netid == self.netid:
+                            wins += 1
+                except Exception as e:
+                    # Log error but continue counting
+                    print(f"[WARNING] Error processing game {game.id if game else 'unknown'} stats: {e}")
+                    continue
+            
+            losses = total - wins
+            win_rate = round((wins / total) * 100, 1) if total > 0 else 0
+            
+            return {
+                'wins': wins,
+                'losses': losses,
+                'total': total,
+                'win_rate': win_rate
+            }
+        except Exception as e:
+            print(f"[ERROR] Failed to calculate game stats for user {self.netid}: {e}")
             return {'wins': 0, 'losses': 0, 'total': 0, 'win_rate': 0}
-        
-        wins = 0
-        for game in games:
-            try:
-                if game.is_doubles():
-                    # Check if user is on winning team
-                    if self.netid in game.get_winning_team_netids():
-                        wins += 1
-                else:
-                    # Singles game
-                    if game.winner_netid == self.netid:
-                        wins += 1
-            except Exception as e:
-                # Log error but continue counting
-                print(f"[WARNING] Error processing game {game.id} stats: {e}")
-                continue
-        
-        losses = total - wins
-        win_rate = round((wins / total) * 100, 1) if total > 0 else 0
-        
-        return {
-            'wins': wins,
-            'losses': losses,
-            'total': total,
-            'win_rate': win_rate
-        }
     
     def get_win_count(self):
         """Get number of games won (singles and doubles)"""
@@ -157,14 +180,22 @@ class Game(db.Model):
     
     def get_winning_team_netids(self):
         """Get the netids of the winning team/player"""
-        if self.is_doubles():
-            # For doubles, winner_netid represents one player, find their team
-            if self.winner_netid in self.get_team1_netids():
-                return self.get_team1_netids()
+        try:
+            if not self.winner_netid:
+                return []
+                
+            if self.is_doubles():
+                # For doubles, winner_netid represents one player, find their team
+                team1 = self.get_team1_netids()
+                if self.winner_netid in team1:
+                    return team1
+                else:
+                    return self.get_team2_netids()
             else:
-                return self.get_team2_netids()
-        else:
-            return [self.winner_netid]
+                return [self.winner_netid]
+        except Exception as e:
+            print(f"[ERROR] Failed to get winning team for game {self.id}: {e}")
+            return []
     
     def get_losing_team_netids(self):
         """Get the netids of the losing team/player"""

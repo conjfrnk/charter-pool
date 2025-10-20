@@ -9,9 +9,9 @@
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self';">
   <title>{% block title %}Charter Pool{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ cache_bust }}">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pcc_logo.png') }}">
-  <script src="{{ url_for('static', filename='main.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='main.js') }}?v={{ cache_bust }}" defer></script>
 </head>
 <body>
   <div class="wrapper">
@@ -22,7 +22,12 @@
         </a>
         <h1><a href="{{ url_for('index') if current_user else url_for('login') }}">Charter Pool</a></h1>
       </div>
-      <div class="nav">
+      <button class="mobile-menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+      <nav class="nav">
         {% if current_user %}
           <a href="{{ url_for('index') }}">Dashboard</a>
           <a href="{{ url_for('report_game') }}">Report Game</a>
@@ -38,7 +43,7 @@
           <span class="user-info">Admin: {{ current_admin.username }}</span>
           <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
         {% endif %}
-      </div>
+      </nav>
     </header>
 
     <main class="content">

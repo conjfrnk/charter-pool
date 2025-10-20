@@ -51,16 +51,24 @@ def load_user(user_id):
 
 def get_current_user():
     """Get the current User object (not UserSession)"""
-    from flask_login import current_user
-    if current_user.is_authenticated and not current_user.is_admin:
-        return User.query.get(current_user.netid)
+    try:
+        from flask_login import current_user
+        if current_user.is_authenticated and not current_user.is_admin:
+            user = User.query.get(current_user.netid)
+            if user and not user.archived:
+                return user
+    except Exception as e:
+        print(f"[ERROR] Failed to get current user: {e}")
     return None
 
 def get_current_admin():
     """Get the current Admin object (not AdminSession)"""
-    from flask_login import current_user
-    if current_user.is_authenticated and current_user.is_admin:
-        return Admin.query.get(current_user.admin_id)
+    try:
+        from flask_login import current_user
+        if current_user.is_authenticated and current_user.is_admin:
+            return Admin.query.get(current_user.admin_id)
+    except Exception as e:
+        print(f"[ERROR] Failed to get current admin: {e}")
     return None
 
 def login_user_by_netid(netid):
@@ -68,13 +76,20 @@ def login_user_by_netid(netid):
     Login a user by their netid
     Returns (success, user_or_error_message, needs_setup)
     """
-    netid = netid.strip().lower()
-    
-    if not netid:
-        return False, "NetID cannot be empty", False
-    
-    # Check if user exists
-    user = User.query.get(netid)
+    try:
+        if not netid:
+            return False, "NetID cannot be empty", False
+        
+        netid = netid.strip().lower()
+        
+        if not netid or len(netid) > 50:
+            return False, "Invalid NetID format", False
+        
+        # Check if user exists
+        user = User.query.get(netid)
+    except Exception as e:
+        print(f"[ERROR] Error in login_user_by_netid: {e}")
+        return False, "An error occurred during login. Please try again.", False
     
     if user:
         if user.archived:

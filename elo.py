@@ -45,16 +45,27 @@ def update_ratings_after_game(winner, loser, k_factor=32):
     Returns:
         The ELO change amount (positive integer for winner)
     """
-    winner_change, loser_change = calculate_elo_change(
-        winner.elo_rating,
-        loser.elo_rating,
-        k_factor
-    )
-    
-    winner.elo_rating += winner_change
-    loser.elo_rating += loser_change
-    
-    return winner_change
+    try:
+        # Validate inputs
+        if not winner or not loser:
+            raise ValueError("Both winner and loser must be provided")
+        
+        if not hasattr(winner, 'elo_rating') or not hasattr(loser, 'elo_rating'):
+            raise ValueError("Players must have elo_rating attribute")
+        
+        winner_change, loser_change = calculate_elo_change(
+            winner.elo_rating,
+            loser.elo_rating,
+            k_factor
+        )
+        
+        winner.elo_rating += winner_change
+        loser.elo_rating += loser_change
+        
+        return winner_change
+    except Exception as e:
+        print(f"[ERROR] Failed to update ratings: {e}")
+        raise
 
 def calculate_team_average_rating(player1_rating, player2_rating):
     """
@@ -83,15 +94,32 @@ def update_ratings_after_doubles_game(team1_players, team2_players, winning_team
     Returns:
         The ELO change amount (positive integer for winners)
     """
-    # Calculate team average ratings
-    team1_avg = calculate_team_average_rating(
-        team1_players[0].elo_rating,
-        team1_players[1].elo_rating
-    )
-    team2_avg = calculate_team_average_rating(
-        team2_players[0].elo_rating,
-        team2_players[1].elo_rating
-    )
+    try:
+        # Validate inputs
+        if not team1_players or len(team1_players) != 2:
+            raise ValueError("Team 1 must have exactly 2 players")
+        if not team2_players or len(team2_players) != 2:
+            raise ValueError("Team 2 must have exactly 2 players")
+        if winning_team not in [1, 2]:
+            raise ValueError("Winning team must be 1 or 2")
+        
+        # Validate all players have elo_rating
+        for player in team1_players + team2_players:
+            if not player or not hasattr(player, 'elo_rating'):
+                raise ValueError("All players must have elo_rating attribute")
+        
+        # Calculate team average ratings
+        team1_avg = calculate_team_average_rating(
+            team1_players[0].elo_rating,
+            team1_players[1].elo_rating
+        )
+        team2_avg = calculate_team_average_rating(
+            team2_players[0].elo_rating,
+            team2_players[1].elo_rating
+        )
+    except Exception as e:
+        print(f"[ERROR] Failed to validate doubles game inputs: {e}")
+        raise
     
     # Calculate ELO changes based on team averages
     if winning_team == 1:

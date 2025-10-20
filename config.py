@@ -21,6 +21,27 @@ class Config:
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    # Database connection pooling for performance
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 10,          # Number of connections to maintain
+        'pool_recycle': 3600,     # Recycle connections after 1 hour
+        'pool_pre_ping': True,    # Verify connections before using
+        'max_overflow': 20,       # Allow up to 20 additional connections
+        'pool_timeout': 30        # Timeout after 30 seconds
+    }
+    
+    # Flask-Compress configuration
+    COMPRESS_MIMETYPES = [
+        'text/html',
+        'text/css',
+        'text/xml',
+        'application/json',
+        'application/javascript',
+        'text/javascript'
+    ]
+    COMPRESS_LEVEL = 6  # Compression level (1-9, 6 is default)
+    COMPRESS_MIN_SIZE = 500  # Only compress responses larger than 500 bytes
+    
     # Session configuration (no auto-logout)
     PERMANENT_SESSION_LIFETIME = timedelta(days=365)  # Sessions last 1 year (effectively permanent)
     SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS

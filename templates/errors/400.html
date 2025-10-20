@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+
+{% block title %}400 Bad Request - Charter Pool{% endblock %}
+
+{% block content %}
+<div class="error-container">
+  <h1>400</h1>
+  <h2>Bad Request</h2>
+  <p>The server could not understand your request. Please check your input and try again.</p>
+  <div style="margin-top: 30px;">
+    <a href="{{ url_for('index') }}" class="btn btn-primary">Go to Dashboard</a>
+  </div>
+</div>
+{% endblock %}
+

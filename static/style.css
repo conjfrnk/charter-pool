@@ -49,6 +49,7 @@ header {
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  flex-wrap: wrap;
 }
 
 .header-left {
@@ -77,6 +78,41 @@ header h1 {
 header h1 a {
   color: #fff;
   text-decoration: none;
+}
+
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  align-items: center;
+}
+
+.hamburger-line {
+  width: 25px;
+  height: 3px;
+  background: #fff;
+  border-radius: 2px;
+  transition: all 0.3s;
+}
+
+.mobile-menu-toggle[aria-expanded="true"] .hamburger-line:nth-child(1) {
+  transform: rotate(45deg) translate(7px, 7px);
+}
+
+.mobile-menu-toggle[aria-expanded="true"] .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.mobile-menu-toggle[aria-expanded="true"] .hamburger-line:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -7px);
 }
 
 .nav {
@@ -1016,29 +1052,56 @@ table tr.highlight {
 /* Responsive Design */
 @media (max-width: 768px) {
   header {
-    flex-direction: column;
     padding: 10px 15px;
     gap: 10px;
   }
 
+  .mobile-menu-toggle {
+    display: flex;
+    order: 2;
+  }
+
+  .header-left {
+    order: 1;
+    flex: 1;
+  }
+
   .nav {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-    width: 100%;
+    order: 3;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+  }
+
+  .nav.mobile-menu-open {
+    max-height: 500px;
+    padding-top: 10px;
   }
   
-  .nav a {
-    padding: 8px 14px;
+  .nav a,
+  .nav .user-info {
+    padding: 12px 16px;
     min-height: 44px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .nav a {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .nav a:active {
+    background: rgba(255, 255, 255, 0.15);
   }
 
   .content {
     padding: 15px;
-    margin-top: 140px;
+    margin-top: 80px;
   }
 
   .dashboard-grid {
@@ -1156,6 +1219,20 @@ table tr.highlight {
   .form-group textarea {
     font-size: 16px;
     padding: 12px;
+    min-height: 44px;
+  }
+  
+  .search-results {
+    width: calc(100% - 30px);
+  }
+  
+  .rating-label span {
+    padding: 12px 16px;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 

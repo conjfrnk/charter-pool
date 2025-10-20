@@ -43,6 +43,34 @@ function wrapTablesForMobile() {
 document.addEventListener('DOMContentLoaded', () => {
   console.log("Charter Pool initialized!");
   
+  // Mobile menu toggle
+  const menuToggle = document.querySelector('.mobile-menu-toggle');
+  const nav = document.querySelector('.nav');
+  
+  if (menuToggle && nav) {
+    menuToggle.addEventListener('click', () => {
+      const isOpen = menuToggle.getAttribute('aria-expanded') === 'true';
+      menuToggle.setAttribute('aria-expanded', !isOpen);
+      nav.classList.toggle('mobile-menu-open');
+    });
+    
+    // Close menu when clicking a link
+    nav.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        menuToggle.setAttribute('aria-expanded', 'false');
+        nav.classList.remove('mobile-menu-open');
+      });
+    });
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('header')) {
+        menuToggle.setAttribute('aria-expanded', 'false');
+        nav.classList.remove('mobile-menu-open');
+      }
+    });
+  }
+  
   // Auto-hide flash messages after 5 seconds
   const alerts = document.querySelectorAll('.alert');
   alerts.forEach(alert => {
@@ -84,14 +112,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }, true);
   }
   
-  // Add touch-friendly tap effects on mobile
+  // Add touch-friendly tap effects on mobile with passive listeners
   if ('ontouchstart' in window) {
     document.addEventListener('touchstart', (e) => {
       if (e.target.closest('.btn, a, button')) {
         const element = e.target.closest('.btn, a, button');
         element.style.opacity = '0.7';
       }
-    });
+    }, { passive: true });
     
     document.addEventListener('touchend', (e) => {
       if (e.target.closest('.btn, a, button')) {
@@ -100,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
           element.style.opacity = '1';
         }, 150);
       }
-    });
+    }, { passive: true });
   }
   
   // Debounced search handling (if search inputs exist)
