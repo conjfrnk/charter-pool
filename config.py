@@ -17,7 +17,7 @@ class Config:
         SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     
     # Database configuration
-    DATABASE_URL = os.environ.get('DATABASE_URL') or 'postgresql://localhost/charter_pool'
+    DATABASE_URL = os.environ.get('DATABASE_URL') or 'postgresql://charter_pool@localhost/charter_pool'
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     

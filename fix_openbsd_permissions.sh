@@ -31,13 +31,17 @@ echo "Setting ownership..."
 chown -R "$APP_USER:$APP_GROUP" .
 
 echo "Setting directory permissions..."
-find . -type d -exec chmod 755 {} \;
+find . -type d -not -path "./chool_env/*" -exec chmod 755 {} \;
 
 echo "Setting file permissions..."
-find . -type f -exec chmod 644 {} \;
+find . -type f -not -path "./chool_env/*" -exec chmod 644 {} \;
+
+echo "Fixing venv permissions..."
+chmod +x chool_env/bin/* 2>/dev/null || true
 
 echo "Making scripts executable..."
 chmod +x diagnose_openbsd.py 2>/dev/null || true
+chmod +x test_fixes.py 2>/dev/null || true
 
 echo "Checking critical files..."
 for file in app.py auth.py models.py config.py secrets.txt VERSION; do
