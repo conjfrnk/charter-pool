@@ -33,15 +33,17 @@
         <td>
           {% if game.is_doubles() %}
             <!-- Doubles Game -->
+            {% set player3 = User.query.get(game.player3_netid) %}
+            {% set player4 = User.query.get(game.player4_netid) %}
             <div class="doubles-match">
               <div class="team {% if game.winner_netid in game.get_team1_netids() %}winning-team{% endif %}">
                 <strong>Team 1:</strong> 
-                {{ game.player1.full_name }} & {{ game.player2.full_name }}
+                {{ game.player1.full_name if game.player1 else 'Unknown' }} & {{ game.player2.full_name if game.player2 else 'Unknown' }}
               </div>
               <div class="vs-separator">vs</div>
               <div class="team {% if game.winner_netid in game.get_team2_netids() %}winning-team{% endif %}">
                 <strong>Team 2:</strong> 
-                {{ User.query.get(game.player3_netid).full_name }} & {{ User.query.get(game.player4_netid).full_name }}
+                {{ player3.full_name if player3 else 'Unknown' }} & {{ player4.full_name if player4 else 'Unknown' }}
               </div>
             </div>
           {% else %}
@@ -65,7 +67,8 @@
               Team 2
             {% endif %}
           {% else %}
-            {{ User.query.get(game.winner_netid).full_name }}
+            {% set winner = User.query.get(game.winner_netid) %}
+            {{ winner.full_name if winner else 'Unknown' }}
           {% endif %}
         </td>
         <td class="elo-cell">±{{ game.elo_change }}</td>

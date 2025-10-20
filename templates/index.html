@@ -36,6 +36,7 @@
       <h3>Quick Actions</h3>
       <div class="quick-actions">
         <a href="{{ url_for('report_game') }}" class="btn btn-primary">Report Game Result</a>
+        <a href="{{ url_for('game_history') }}" class="btn btn-secondary">View Full Game History</a>
         <a href="{{ url_for('tournaments') }}" class="btn btn-secondary">View Tournaments</a>
         <a href="{{ url_for('leaderboard') }}" class="btn btn-secondary">Full Leaderboard</a>
       </div>
@@ -74,7 +75,10 @@
     </div>
     
     <div class="card">
-      <h3>Recent Games</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin-bottom: 0;">Recent Games (Last 10)</h3>
+        <a href="{{ url_for('game_history') }}" style="font-size: 14px;">View All →</a>
+      </div>
       {% if recent_games %}
       <div class="games-list">
         {% for game in recent_games %}
@@ -85,13 +89,15 @@
           <div class="game-players">
             {% if game.is_doubles() %}
               <!-- Doubles Game -->
+              {% set player3 = User.query.get(game.player3_netid) %}
+              {% set player4 = User.query.get(game.player4_netid) %}
               <div class="doubles-teams">
                 <span class="team-label {% if game.winner_netid in game.get_team1_netids() %}winner{% endif %}">
-                  {{ game.player1.full_name }} & {{ game.player2.full_name }}
+                  {{ game.player1.full_name if game.player1 else 'Unknown' }} & {{ game.player2.full_name if game.player2 else 'Unknown' }}
                 </span>
                 <span class="vs-text">vs</span>
                 <span class="team-label {% if game.winner_netid in game.get_team2_netids() %}winner{% endif %}">
-                  {{ User.query.get(game.player3_netid).full_name }} & {{ User.query.get(game.player4_netid).full_name }}
+                  {{ player3.full_name if player3 else 'Unknown' }} & {{ player4.full_name if player4 else 'Unknown' }}
                 </span>
               </div>
             {% else %}

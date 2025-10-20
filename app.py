@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_talisman import Talisman
 from flask_login import login_required, logout_user, current_user
 from sqlalchemy import or_, desc, text
+from sqlalchemy.orm import joinedload
 
 from config import Config
 from models import db, User, Admin, Game, Tournament, TournamentParticipant, TournamentMatch
@@ -152,7 +153,19 @@ def index():
         return redirect(url_for('admin_dashboard'))
     
     user = get_current_user()
-    recent_games = user.get_all_games()[:10]
+    
+    # Get recent games with eager loading - limit to 10 directly
+    recent_games = Game.query.options(
+        joinedload(Game.player1),
+        joinedload(Game.player2)
+    ).filter(
+        or_(
+            Game.player1_netid == user.netid,
+            Game.player2_netid == user.netid,
+            Game.player3_netid == user.netid,
+            Game.player4_netid == user.netid
+        )
+    ).order_by(desc(Game.timestamp)).limit(10).all()
     
     # Get leaderboard (top 10) - only active users
     leaderboard = User.query.filter_by(archived=False, is_active=True).order_by(desc(User.elo_rating)).limit(10).all()
@@ -338,11 +351,25 @@ def report_game():
 def game_history():
     """View game history"""
     if current_user.is_admin:
-        # Show all games for admin
-        games = Game.query.order_by(desc(Game.timestamp)).limit(100).all()
+        # Show all games for admin with eager loading
+        games = Game.query.options(
+            joinedload(Game.player1),
+            joinedload(Game.player2)
+        ).order_by(desc(Game.timestamp)).limit(100).all()
     else:
         user = get_current_user()
-        games = user.get_all_games()
+        # Get user's games with eager loading
+        games = Game.query.options(
+            joinedload(Game.player1),
+            joinedload(Game.player2)
+        ).filter(
+            or_(
+                Game.player1_netid == user.netid,
+                Game.player2_netid == user.netid,
+                Game.player3_netid == user.netid,
+                Game.player4_netid == user.netid
+            )
+        ).order_by(desc(Game.timestamp)).all()
     
     return render_template("game_history.html", games=games)
 
@@ -680,7 +707,11 @@ def admin_dashboard():
     total_tournaments = Tournament.query.count()
     active_tournaments = Tournament.query.filter_by(status='active').count()
     
-    recent_games = Game.query.order_by(desc(Game.timestamp)).limit(10).all()
+    # Recent games with eager loading
+    recent_games = Game.query.options(
+        joinedload(Game.player1),
+        joinedload(Game.player2)
+    ).order_by(desc(Game.timestamp)).limit(10).all()
     
     return render_template(
         "admin/dashboard.html",
@@ -1032,12 +1063,21 @@ def inject_user():
         if current_user.is_authenticated:
             if current_user.is_admin:
                 admin = get_current_admin()
+                if admin is None:
+                    print(f"[ERROR] Admin session exists but admin not found in DB: {current_user.admin_id}")
+                    return {"current_admin": None, "current_user": None}
                 return {"current_admin": admin, "current_user": None}
             else:
                 user = get_current_user()
+                if user is None:
+                    print(f"[ERROR] User session exists but user not found in DB: {current_user.netid}")
+                    return {"current_user": None, "current_admin": None}
                 return {"current_user": user, "current_admin": None}
+    except AttributeError as e:
+        print(f"[WARNING] AttributeError in inject_user: {e}")
+        return {"current_user": None, "current_admin": None}
     except Exception as e:
-        print(f"[WARNING] Error in inject_user context processor: {e}")
+        print(f"[ERROR] Unexpected error in inject_user context processor: {e}")
         import traceback
         traceback.print_exc()
     return {"current_user": None, "current_admin": None}
@@ -1075,8 +1115,14 @@ def not_found_error(error):
 
 @app.errorhandler(500)
 def internal_error(error):
-    print(f"[ERROR] 500 Internal Server Error: {error}")
+    """Enhanced 500 error handler with better logging and fallbacks"""
     import traceback
+    
+    # Log full error details
+    print(f"[ERROR] 500 Internal Server Error: {error}")
+    print(f"[ERROR] Error type: {type(error).__name__}")
+    print(f"[ERROR] Request path: {request.path if request else 'Unknown'}")
+    print(f"[ERROR] Request method: {request.method if request else 'Unknown'}")
     traceback.print_exc()
     
     # Get error details
@@ -1084,35 +1130,57 @@ def internal_error(error):
     error_message = str(error)
     
     # Get traceback for admins
-    if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
-        tb = traceback.format_exc()
-    else:
-        tb = None
+    tb = None
+    try:
+        if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
+            tb = traceback.format_exc()
+    except Exception as tb_error:
+        print(f"[WARNING] Could not get traceback for admin: {tb_error}")
     
+    # Try to rollback database session
     try:
         db.session.rollback()
-        print(f"[INFO] Database session rolled back")
-    except Exception as e:
-        print(f"[ERROR] Failed to rollback database session: {e}")
+        print(f"[INFO] Database session rolled back successfully")
+    except Exception as rollback_error:
+        print(f"[ERROR] Failed to rollback database session: {rollback_error}")
     
+    # Try to render error template
     try:
         return render_template('errors/500.html', 
                              error_type=error_type,
                              error_message=error_message,
                              traceback=tb), 500
-    except Exception as e:
-        print(f"[ERROR] Failed to render 500 error template: {e}")
+    except Exception as template_error:
+        print(f"[ERROR] Failed to render 500 error template: {template_error}")
+        traceback.print_exc()
+        
         # Fallback to plain HTML if template rendering fails
+        admin_info = ""
+        if tb:
+            admin_info = f"<pre style='background: #f0f0f0; padding: 15px; overflow: auto;'>{tb}</pre>"
+        
         return f"""
         <!DOCTYPE html>
         <html>
-        <head><title>500 Internal Server Error</title></head>
-        <body style="font-family: sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
+        <head>
+            <title>500 Internal Server Error</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{ font-family: sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }}
+                h1 {{ color: #d32f2f; }}
+                .error-box {{ background: #ffebee; border-left: 4px solid #d32f2f; padding: 15px; margin: 20px 0; }}
+                a {{ color: #1976d2; }}
+            </style>
+        </head>
+        <body>
             <h1>500 Internal Server Error</h1>
-            <h2>{error_type}</h2>
-            <p><strong>Error:</strong> {error_message}</p>
+            <div class="error-box">
+                <h2>{error_type}</h2>
+                <p><strong>Error:</strong> {error_message}</p>
+            </div>
             <p>Something went wrong. Please try again later or contact an administrator.</p>
-            <p><a href="/">Go Home</a></p>
+            {admin_info}
+            <p><a href="/">← Go Home</a></p>
         </body>
         </html>
         """, 500

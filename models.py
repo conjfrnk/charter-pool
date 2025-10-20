@@ -10,10 +10,10 @@ class User(db.Model):
     netid = db.Column(db.String(50), primary_key=True)
     first_name = db.Column(db.String(100), nullable=True)  # Nullable until user completes profile
     last_name = db.Column(db.String(100), nullable=True)   # Nullable until user completes profile
-    elo_rating = db.Column(db.Integer, default=1200, nullable=False)
+    elo_rating = db.Column(db.Integer, default=1200, nullable=False, index=True)  # Index for leaderboard sorting
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    archived = db.Column(db.Boolean, default=False, nullable=False)
-    is_active = db.Column(db.Boolean, default=False, nullable=False, server_default='false')  # True when user has completed profile setup
+    archived = db.Column(db.Boolean, default=False, nullable=False, index=True)  # Index for filtering
+    is_active = db.Column(db.Boolean, default=False, nullable=False, server_default='false', index=True)  # Index for filtering
     
     # Relationships
     games_as_player1 = db.relationship('Game', foreign_keys='Game.player1_netid', backref='player1', lazy='dynamic')
@@ -43,43 +43,57 @@ class User(db.Model):
             (Game.player4_netid == self.netid)
         ).order_by(Game.timestamp.desc()).all()
     
+    def get_game_stats(self):
+        """
+        Get game statistics efficiently (wins, losses, total) in a single pass.
+        Returns a dict with 'wins', 'losses', 'total', and 'win_rate'.
+        """
+        games = self.get_all_games()
+        total = len(games)
+        
+        if total == 0:
+            return {'wins': 0, 'losses': 0, 'total': 0, 'win_rate': 0}
+        
+        wins = 0
+        for game in games:
+            try:
+                if game.is_doubles():
+                    # Check if user is on winning team
+                    if self.netid in game.get_winning_team_netids():
+                        wins += 1
+                else:
+                    # Singles game
+                    if game.winner_netid == self.netid:
+                        wins += 1
+            except Exception as e:
+                # Log error but continue counting
+                print(f"[WARNING] Error processing game {game.id} stats: {e}")
+                continue
+        
+        losses = total - wins
+        win_rate = round((wins / total) * 100, 1) if total > 0 else 0
+        
+        return {
+            'wins': wins,
+            'losses': losses,
+            'total': total,
+            'win_rate': win_rate
+        }
+    
     def get_win_count(self):
         """Get number of games won (singles and doubles)"""
-        # For singles: winner_netid matches user
-        # For doubles: user is on winning team
-        wins = 0
-        for game in self.get_all_games():
-            if game.is_doubles():
-                # Check if user is on winning team
-                if self.netid in game.get_winning_team_netids():
-                    wins += 1
-            else:
-                # Singles game
-                if game.winner_netid == self.netid:
-                    wins += 1
-        return wins
+        # For backwards compatibility - use get_game_stats for efficiency
+        return self.get_game_stats()['wins']
     
     def get_loss_count(self):
         """Get number of games lost (singles and doubles)"""
-        losses = 0
-        for game in self.get_all_games():
-            if game.is_doubles():
-                # Check if user is on losing team
-                if self.netid in game.get_losing_team_netids():
-                    losses += 1
-            else:
-                # Singles game
-                if game.winner_netid != self.netid:
-                    losses += 1
-        return losses
+        # For backwards compatibility - use get_game_stats for efficiency
+        return self.get_game_stats()['losses']
     
     def get_win_rate(self):
         """Calculate win rate percentage"""
-        total_games = len(self.get_all_games())
-        if total_games == 0:
-            return 0
-        wins = self.get_win_count()
-        return round((wins / total_games) * 100, 1)
+        # For backwards compatibility - use get_game_stats for efficiency
+        return self.get_game_stats()['win_rate']
 
 
 class Admin(db.Model):
@@ -115,13 +129,13 @@ class Game(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     game_type = db.Column(db.String(20), default='singles', nullable=False)  # 'singles' or 'doubles'
-    player1_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=False)
-    player2_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=False)
-    player3_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=True)  # Team 2, Player 1 (for doubles)
-    player4_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=True)  # Team 2, Player 2 (for doubles)
+    player1_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=False, index=True)
+    player2_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=False, index=True)
+    player3_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=True, index=True)  # Team 2, Player 1 (for doubles)
+    player4_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=True, index=True)  # Team 2, Player 2 (for doubles)
     winner_netid = db.Column(db.String(50), db.ForeignKey('users.netid'), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)  # Index for sorting by time
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=True, index=True)
     elo_change = db.Column(db.Integer, nullable=False)  # ELO change for the winner(s)
     
     def __repr__(self):
@@ -183,8 +197,8 @@ class Tournament(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     format = db.Column(db.String(50), nullable=False)  # single_elim, double_elim, round_robin
-    status = db.Column(db.String(50), default='open', nullable=False)  # open, active, completed
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    status = db.Column(db.String(50), default='open', nullable=False, index=True)  # Index for filtering tournaments
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     created_by_admin_id = db.Column(db.Integer, db.ForeignKey('admins.id'), nullable=False)
     
     # Relationships
