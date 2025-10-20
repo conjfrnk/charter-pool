@@ -128,31 +128,62 @@ def create_user(netid, first_name=None, last_name=None):
     Can be called by admin (netid only) or by user completing profile (with names)
     Returns (success, user_or_error_message)
     """
+    print(f"[DEBUG] create_user called with netid='{netid}', first_name='{first_name}', last_name='{last_name}'")
+    
     netid = netid.strip().lower()
+    print(f"[DEBUG] Cleaned netid: '{netid}'")
     
     if not netid:
+        print(f"[DEBUG] NetID is empty after cleaning")
         return False, "NetID is required"
     
     # Check if user already exists
-    existing_user = User.query.get(netid)
+    print(f"[DEBUG] Checking if user '{netid}' already exists...")
+    try:
+        existing_user = User.query.get(netid)
+        print(f"[DEBUG] Query result: existing_user={existing_user}")
+    except Exception as e:
+        print(f"[DEBUG] Error checking existing user: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, f"Database error checking user: {str(e)}"
+    
     if existing_user:
+        print(f"[DEBUG] User '{netid}' already exists")
         return False, "A user with this NetID already exists"
     
     # Create new user (names can be None if added by admin)
-    user = User(netid=netid)
-    if first_name:
-        user.first_name = first_name.strip()
-    if last_name:
-        user.last_name = last_name.strip()
-    
-    # Set is_active to True only if both names are provided
-    if first_name and last_name:
-        user.is_active = True
-    
-    db.session.add(user)
-    db.session.commit()
-    
-    return True, user
+    print(f"[DEBUG] Creating new user object for '{netid}'")
+    try:
+        user = User(netid=netid)
+        if first_name:
+            user.first_name = first_name.strip()
+        if last_name:
+            user.last_name = last_name.strip()
+        
+        # Set is_active to True only if both names are provided
+        if first_name and last_name:
+            user.is_active = True
+        
+        print(f"[DEBUG] User object created: netid={user.netid}, is_active={user.is_active}")
+        print(f"[DEBUG] Adding user to database session...")
+        db.session.add(user)
+        
+        print(f"[DEBUG] Committing database session...")
+        db.session.commit()
+        
+        print(f"[DEBUG] User '{netid}' successfully created in database")
+        return True, user
+    except Exception as e:
+        print(f"[DEBUG] Error creating user '{netid}': {e}")
+        import traceback
+        traceback.print_exc()
+        try:
+            db.session.rollback()
+            print(f"[DEBUG] Database session rolled back")
+        except Exception as rollback_error:
+            print(f"[DEBUG] Error rolling back: {rollback_error}")
+        return False, f"Database error creating user: {str(e)}"
 
 def complete_user_profile(user, first_name, last_name):
     """

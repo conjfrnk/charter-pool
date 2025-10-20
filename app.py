@@ -647,20 +647,27 @@ def admin_users():
 @login_required
 def admin_add_user():
     """Add new user(s) - supports bulk add with space or comma separation"""
+    print(f"[DEBUG] admin_add_user called by {current_user.id if current_user.is_authenticated else 'unknown'}")
+    
     if not current_user.is_admin:
+        print(f"[DEBUG] Unauthorized access attempt")
         return jsonify({"error": "Unauthorized"}), 403
     
     netid_input = request.form.get("netid", "").strip()
+    print(f"[DEBUG] Raw netid input: '{netid_input}'")
     
     if not netid_input:
+        print(f"[DEBUG] Empty netid input")
         flash("NetID is required.", "error")
         return redirect(url_for('admin_users'))
     
     # Parse input - split by commas and/or spaces
     netids = re.split(r'[,\s]+', netid_input)
     netids = [n.strip().lower() for n in netids if n.strip()]
+    print(f"[DEBUG] Parsed netids: {netids}")
     
     if not netids:
+        print(f"[DEBUG] No valid netids after parsing")
         flash("No valid NetIDs provided.", "error")
         return redirect(url_for('admin_users'))
     
@@ -669,15 +676,30 @@ def admin_add_user():
     skipped = []
     errors = []
     
+    print(f"[DEBUG] Starting to process {len(netids)} netid(s)")
     for netid in netids:
-        success, result = create_user(netid)
-        if success:
-            added.append(netid)
-        else:
-            if "already exists" in result.lower():
-                skipped.append(netid)
+        print(f"[DEBUG] Processing netid: {netid}")
+        try:
+            success, result = create_user(netid)
+            print(f"[DEBUG] create_user returned: success={success}, result={result}")
+            if success:
+                added.append(netid)
+                print(f"[DEBUG] Successfully added: {netid}")
             else:
-                errors.append(f"{netid}: {result}")
+                if "already exists" in result.lower():
+                    skipped.append(netid)
+                    print(f"[DEBUG] Skipped (already exists): {netid}")
+                else:
+                    errors.append(f"{netid}: {result}")
+                    print(f"[DEBUG] Error adding {netid}: {result}")
+        except Exception as e:
+            error_msg = f"{netid}: {str(e)}"
+            errors.append(error_msg)
+            print(f"[DEBUG] Exception adding {netid}: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    print(f"[DEBUG] Results - Added: {len(added)}, Skipped: {len(skipped)}, Errors: {len(errors)}")
     
     # Display results
     if added:
@@ -696,6 +718,7 @@ def admin_add_user():
         for error in errors:
             flash(error, "error")
     
+    print(f"[DEBUG] Redirecting to admin_users")
     return redirect(url_for('admin_users'))
 
 @app.route("/admin/users/<netid>/archive", methods=["POST"])
