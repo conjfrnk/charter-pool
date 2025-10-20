@@ -161,9 +161,11 @@ def create_user(netid, first_name=None, last_name=None):
         if last_name:
             user.last_name = last_name.strip()
         
-        # Set is_active to True only if both names are provided
+        # Set is_active to True only if both names are provided, False otherwise
         if first_name and last_name:
             user.is_active = True
+        else:
+            user.is_active = False
         
         print(f"[DEBUG] User object created: netid={user.netid}, is_active={user.is_active}")
         print(f"[DEBUG] Adding user to database session...")
