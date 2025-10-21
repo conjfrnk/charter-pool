@@ -1107,6 +1107,11 @@ table tr.highlight {
 
   .dashboard-grid {
     grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .card {
+    margin-bottom: 15px;
   }
 
   .stats {
@@ -1135,12 +1140,37 @@ table tr.highlight {
 
   table {
     font-size: 14px;
-    min-width: 500px;
+    min-width: 100%;
   }
 
   table th,
   table td {
     padding: 8px 6px;
+  }
+  
+  .leaderboard-table {
+    min-width: 100%;
+    table-layout: fixed;
+  }
+  
+  .leaderboard-table.full {
+    min-width: 100%;
+    table-layout: fixed;
+  }
+  
+  .leaderboard-table th,
+  .leaderboard-table td {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  /* Make rank and ELO columns narrower */
+  .leaderboard-table .rank-cell {
+    width: 50px;
+  }
+  
+  .leaderboard-table .elo-cell {
+    width: 70px;
   }
   
   .btn {
@@ -1205,12 +1235,51 @@ table tr.highlight {
   }
   
   .card {
-    padding: 20px;
+    padding: 15px;
+    margin-bottom: 12px;
+  }
+  
+  .dashboard-grid {
+    gap: 12px;
   }
   
   table {
-    min-width: 400px;
+    min-width: 100%;
     font-size: 13px;
+  }
+  
+  .leaderboard-table {
+    min-width: 100%;
+    table-layout: fixed;
+  }
+  
+  .leaderboard-table.full {
+    min-width: 100%;
+    table-layout: fixed;
+  }
+  
+  .leaderboard-table th,
+  .leaderboard-table td {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    font-size: 12px;
+  }
+  
+  /* Make rank and ELO columns narrower on small screens */
+  .leaderboard-table .rank-cell {
+    width: 40px;
+    padding: 8px 4px;
+  }
+  
+  .leaderboard-table .elo-cell {
+    width: 60px;
+    padding: 8px 4px;
+  }
+  
+  /* Hide white-space: nowrap on mobile for table headers */
+  table th {
+    white-space: normal;
+    font-size: 12px;
   }
   
   .form-group input[type="text"],
