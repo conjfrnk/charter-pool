@@ -58,7 +58,7 @@
         <tbody>
           {% for u in leaderboard %}
           <tr {% if u.netid == user.netid %}class="highlight"{% endif %}>
-            <td>{{ loop.index }}</td>
+            <td class="rank-cell">{{ loop.index }}</td>
             <td>
               {% if u.first_name and u.last_name %}
                 {{ u.full_name }}
@@ -66,7 +66,7 @@
                 <span class="incomplete-name">Incomplete Profile</span>
               {% endif %}
             </td>
-            <td>{{ u.elo_rating }}</td>
+            <td class="elo-cell">{{ u.elo_rating }}</td>
           </tr>
           {% endfor %}
         </tbody>

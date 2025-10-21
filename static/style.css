@@ -17,6 +17,7 @@ body {
   line-height: 1.6;
   background-color: #f5f5f5;
   color: #333;
+  overflow-x: hidden;
 }
 
 a {
@@ -519,6 +520,7 @@ footer {
   margin-bottom: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  max-width: 100%;
 }
 
 table {
@@ -526,6 +528,10 @@ table {
   min-width: 600px;
   border-collapse: collapse;
   background: white;
+}
+
+.leaderboard-table {
+  min-width: 500px;
 }
 
 table thead {
@@ -1185,7 +1191,6 @@ table tr.highlight {
 
   table {
     font-size: 14px;
-    min-width: 100%;
   }
 
   table th,
@@ -1196,6 +1201,7 @@ table tr.highlight {
   .leaderboard-table {
     min-width: 100%;
     table-layout: fixed;
+    width: 100%;
   }
   
   .leaderboard-table.full {
@@ -1211,11 +1217,17 @@ table tr.highlight {
   
   /* Make rank and ELO columns narrower */
   .leaderboard-table .rank-cell {
-    width: 50px;
+    width: 15%;
+    max-width: 50px;
   }
   
   .leaderboard-table .elo-cell {
-    width: 70px;
+    width: 25%;
+    max-width: 70px;
+  }
+  
+  .leaderboard-table td:nth-child(2) {
+    width: 60%;
   }
   
   .btn {
@@ -1294,13 +1306,13 @@ table tr.highlight {
   }
   
   table {
-    min-width: 100%;
     font-size: 13px;
   }
   
   .leaderboard-table {
     min-width: 100%;
     table-layout: fixed;
+    width: 100%;
   }
   
   .leaderboard-table.full {
@@ -1317,13 +1329,19 @@ table tr.highlight {
   
   /* Make rank and ELO columns narrower on small screens */
   .leaderboard-table .rank-cell {
-    width: 40px;
+    width: 15%;
+    max-width: 40px;
     padding: 8px 4px;
   }
   
   .leaderboard-table .elo-cell {
-    width: 60px;
+    width: 20%;
+    max-width: 60px;
     padding: 8px 4px;
+  }
+  
+  .leaderboard-table td:nth-child(2) {
+    width: 65%;
   }
   
   /* Hide white-space: nowrap on mobile for table headers */
