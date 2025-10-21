@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             resultsDiv.innerHTML = users.map(user => `
               <div class="search-result-item" data-netid="${user.netid}" data-name="${user.name}" data-elo="${user.elo}">
-                <strong>${user.name}</strong> (${user.netid})
+                <strong>${user.name}</strong> <span class="elo-badge">${user.elo}</span>
               </div>
             `).join('');
             resultsDiv.style.display = 'block';
@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       selectedDiv.innerHTML = `
         <div class="selected-opponent-card">
-          <strong>${player.name}</strong> (${player.netid})
+          <strong>${player.name}</strong> <span class="elo-badge">${player.elo}</span>
           <button type="button" class="clear-btn" onclick="clearPlayer('${netidInputId}', '${selectedDivId}', '${valueTargetId || ''}')">×</button>
         </div>
       `;

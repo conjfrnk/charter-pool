@@ -46,7 +46,8 @@
   <div class="dashboard-grid">
     <div class="card">
       <h3>Top 10 Leaderboard</h3>
-      <table class="leaderboard-table">
+      <div class="table-container">
+        <table class="leaderboard-table">
         <thead>
           <tr>
             <th>Rank</th>
@@ -70,12 +71,13 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
     </div>
     
     <div class="card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="margin-bottom: 0;">Recent Games (Last 10)</h3>
-        <a href="{{ url_for('game_history') }}" style="font-size: 14px;">View All →</a>
+      <div class="card-header-with-link">
+        <h3>Recent Games (Last 10)</h3>
+        <a href="{{ url_for('game_history') }}" class="view-all-link">View All →</a>
       </div>
       {% if recent_games %}
       <div class="games-list">
@@ -159,33 +161,6 @@
   </div>
   {% endif %}
 </div>
-
-<style>
-.delete-form-inline {
-  display: inline-block;
-  margin: 0;
-  margin-left: 8px;
-}
-.btn-delete-small {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 2px 6px;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 0.85em;
-  transition: background-color 0.2s;
-  line-height: 1;
-}
-.btn-delete-small:hover {
-  background-color: #c82333;
-}
-.game-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-</style>
 
 <script>
 function confirmDelete() {

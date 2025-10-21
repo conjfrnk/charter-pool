@@ -38,7 +38,7 @@
   {% endif %}
   
   {% if current_admin and tournament.status == 'open' %}
-    <form method="POST" action="{{ url_for('admin_activate_tournament', tournament_id=tournament.id) }}" style="margin: 20px 0;">
+    <form method="POST" action="{{ url_for('admin_activate_tournament', tournament_id=tournament.id) }}" class="admin-action-form">
       <button type="submit" class="btn btn-primary">Activate Tournament</button>
     </form>
   {% endif %}
@@ -46,7 +46,8 @@
   <section class="participants-section">
     <h3>Participants ({{ participants|length }})</h3>
     {% if participants %}
-    <table class="participants-table">
+    <div class="table-container">
+      <table class="participants-table">
       <thead>
         <tr>
           {% if tournament.status != 'open' %}<th>Seed</th>{% endif %}
@@ -68,6 +69,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <p>No participants yet.</p>
     {% endif %}

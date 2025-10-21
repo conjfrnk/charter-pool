@@ -226,6 +226,22 @@ footer {
   font-weight: 600;
 }
 
+.card-header-with-link {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.card-header-with-link h3 {
+  margin-bottom: 0;
+}
+
+.view-all-link {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
 .card h4 {
   margin-top: 20px;
   margin-bottom: 12px;
@@ -458,10 +474,33 @@ footer {
 
 .game-meta {
   display: flex;
-  gap: 15px;
+  gap: 8px;
   align-items: center;
   font-size: 14px;
   color: #666;
+}
+
+.delete-form-inline {
+  display: inline-block;
+  margin: 0;
+  margin-left: 8px;
+}
+
+.btn-delete-small {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background-color 0.2s;
+  line-height: 1;
+  min-height: 28px;
+}
+
+.btn-delete-small:hover {
+  background-color: #c82333;
 }
 
 .elo-change {
@@ -478,6 +517,8 @@ footer {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 
 table {
@@ -974,6 +1015,10 @@ table tr.highlight {
   margin-top: 30px;
 }
 
+.admin-action-form {
+  margin: 20px 0;
+}
+
 /* Modal */
 .modal {
   display: none;
@@ -1239,6 +1284,11 @@ table tr.highlight {
     margin-bottom: 12px;
   }
   
+  .card .table-container {
+    margin-left: -15px;
+    margin-right: -15px;
+  }
+  
   .dashboard-grid {
     gap: 12px;
   }
@@ -1280,6 +1330,53 @@ table tr.highlight {
   table th {
     white-space: normal;
     font-size: 12px;
+  }
+  
+  /* Make games table more compact on mobile */
+  .games-table {
+    min-width: 100%;
+    table-layout: auto;
+  }
+  
+  .games-table th,
+  .games-table td {
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+  
+  .games-table .btn-delete {
+    padding: 4px 8px;
+    font-size: 11px;
+    min-height: 32px;
+  }
+  
+  /* Tournament tables */
+  .tournament-table {
+    min-width: 100%;
+  }
+  
+  .participants-table {
+    min-width: 100%;
+  }
+  
+  /* Ensure page containers don't overflow */
+  .page-container {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  /* Reduce table container padding on mobile */
+  .table-container {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 8px;
+    box-shadow: none;
+  }
+  
+  .card .table-container {
+    margin-left: -25px;
+    margin-right: -25px;
+    border-radius: 0;
   }
   
   .form-group input[type="text"],
@@ -1330,6 +1427,25 @@ table tr.highlight {
   color: white;
 }
 
+/* Game Type Badges - Full Size (for game history) */
+.game-type-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.game-type-badge.singles {
+  background-color: #3498db;
+  color: white;
+}
+
+.game-type-badge.doubles {
+  background-color: #e67e22;
+  color: white;
+}
+
 /* Doubles Game Display */
 .doubles-teams {
   display: flex;
@@ -1350,6 +1466,74 @@ table tr.highlight {
   color: #999;
   margin: 0 4px;
   font-size: 13px;
+}
+
+/* Game History Specific Styles */
+.doubles-match {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.singles-match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.team {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+  font-size: 14px;
+}
+
+.winning-team {
+  background-color: #d4edda;
+  font-weight: 600;
+}
+
+.winner-name {
+  font-weight: 600;
+  color: #28a745;
+}
+
+.vs-separator {
+  color: #6c757d;
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+.delete-form {
+  display: inline-block;
+  margin: 0;
+}
+
+.btn-delete {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background-color 0.2s;
+  min-height: 36px;
+}
+
+.btn-delete:hover {
+  background-color: #c82333;
+}
+
+.cannot-delete {
+  color: #6c757d;
+  font-size: 0.9em;
+}
+
+.casual-game {
+  color: #999;
+  font-style: italic;
 }
 
 /* Game Type Form Sections */

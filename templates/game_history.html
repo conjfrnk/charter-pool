@@ -5,7 +5,8 @@
   <h2>Game History</h2>
   
   {% if games %}
-  <table class="games-table">
+  <div class="table-container">
+    <table class="games-table">
     <thead>
       <tr>
         <th>Date/Time</th>
@@ -98,77 +99,11 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <p>No games recorded yet.</p>
   {% endif %}
 </div>
-
-<style>
-.game-type-badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.85em;
-  font-weight: 600;
-}
-.game-type-badge.singles {
-  background-color: #3498db;
-  color: white;
-}
-.game-type-badge.doubles {
-  background-color: #e67e22;
-  color: white;
-}
-.doubles-match {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.singles-match {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.team {
-  padding: 4px 8px;
-  border-radius: 4px;
-  background-color: #f8f9fa;
-}
-.winning-team {
-  background-color: #d4edda;
-  font-weight: 600;
-}
-.winner-name {
-  font-weight: 600;
-  color: #28a745;
-}
-.vs-separator {
-  color: #6c757d;
-  font-size: 0.9em;
-  font-style: italic;
-}
-.delete-form {
-  display: inline-block;
-  margin: 0;
-}
-.btn-delete {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85em;
-  transition: background-color 0.2s;
-}
-.btn-delete:hover {
-  background-color: #c82333;
-}
-.cannot-delete {
-  color: #6c757d;
-  font-size: 0.9em;
-}
-</style>
 
 <script>
 function confirmDelete() {

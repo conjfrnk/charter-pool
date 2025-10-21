@@ -43,7 +43,8 @@
   {% if completed_tournaments %}
   <section class="tournament-section">
     <h3>Recent Completed Tournaments</h3>
-    <table class="tournament-table">
+    <div class="table-container">
+      <table class="tournament-table">
       <thead>
         <tr>
           <th>Tournament</th>
@@ -65,6 +66,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   </section>
   {% endif %}
   
