@@ -25,9 +25,12 @@
     <div id="singles_form" class="game-type-form">
       <div class="form-group">
         <label for="opponent_search">Search for Opponent</label>
-        <input type="search" id="opponent_search" placeholder="Type NetID or name..." autocomplete="off" inputmode="search">
+        <div class="search-input-wrapper">
+          <input type="search" id="opponent_search" placeholder="Type NetID or name..." autocomplete="off" inputmode="search" required>
+          <span class="search-loading" style="display: none;">🔍</span>
+        </div>
         <div id="search_results" class="search-results"></div>
-        <input type="hidden" id="opponent_netid" name="opponent_netid">
+        <input type="hidden" id="opponent_netid" name="opponent_netid" required>
         <div id="selected_opponent" class="selected-opponent"></div>
       </div>
       
@@ -51,7 +54,10 @@
       <h3>Your Team (Team 1)</h3>
       <div class="form-group">
         <label for="partner_search">Your Partner</label>
-        <input type="search" id="partner_search" placeholder="Type NetID or name..." autocomplete="off" inputmode="search">
+        <div class="search-input-wrapper">
+          <input type="search" id="partner_search" placeholder="Type NetID or name..." autocomplete="off" inputmode="search">
+          <span class="search-loading" style="display: none;">🔍</span>
+        </div>
         <div id="partner_search_results" class="search-results"></div>
         <input type="hidden" id="partner_netid" name="partner_netid">
         <div id="selected_partner" class="selected-opponent"></div>
@@ -60,7 +66,10 @@
       <h3>Opponent Team (Team 2)</h3>
       <div class="form-group">
         <label for="opponent1_search">First Opponent</label>
-        <input type="search" id="opponent1_search" placeholder="Type NetID or name..." autocomplete="off" inputmode="search">
+        <div class="search-input-wrapper">
+          <input type="search" id="opponent1_search" placeholder="Type NetID or name..." autocomplete="off" inputmode="search">
+          <span class="search-loading" style="display: none;">🔍</span>
+        </div>
         <div id="opponent1_search_results" class="search-results"></div>
         <input type="hidden" id="opponent1_netid" name="opponent1_netid">
         <div id="selected_opponent1" class="selected-opponent"></div>
@@ -68,7 +77,10 @@
 
       <div class="form-group">
         <label for="opponent2_search">Second Opponent</label>
-        <input type="search" id="opponent2_search" placeholder="Type NetID or name..." autocomplete="off" inputmode="search">
+        <div class="search-input-wrapper">
+          <input type="search" id="opponent2_search" placeholder="Type NetID or name..." autocomplete="off" inputmode="search">
+          <span class="search-loading" style="display: none;">🔍</span>
+        </div>
         <div id="opponent2_search_results" class="search-results"></div>
         <input type="hidden" id="opponent2_netid" name="opponent2_netid">
         <div id="selected_opponent2" class="selected-opponent"></div>
@@ -96,6 +108,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  // Auto-focus first visible search input
+  const firstVisibleInput = document.querySelector('#singles_form input[type="search"]');
+  if (firstVisibleInput) {
+    setTimeout(() => firstVisibleInput.focus(), 100);
+  }
+  
   // Toggle between singles and doubles forms
   const gameTypeRadios = document.querySelectorAll('input[name="game_type"]');
   const singlesForm = document.getElementById('singles_form');
@@ -112,6 +130,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('partner_netid').required = false;
         document.getElementById('opponent1_netid').required = false;
         document.getElementById('opponent2_netid').required = false;
+        // Focus first input
+        setTimeout(() => document.getElementById('opponent_search').focus(), 100);
       } else {
         singlesForm.style.display = 'none';
         doublesForm.style.display = 'block';
@@ -121,6 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('partner_netid').required = true;
         document.getElementById('opponent1_netid').required = true;
         document.getElementById('opponent2_netid').required = true;
+        // Focus first input
+        setTimeout(() => document.getElementById('partner_search').focus(), 100);
       }
     });
   });
@@ -136,19 +158,26 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.addEventListener('input', (e) => {
       clearTimeout(searchTimeout);
       const query = e.target.value.trim();
+      const loadingIndicator = searchInput.parentElement.querySelector('.search-loading');
       
       if (query.length < 2) {
         resultsDiv.innerHTML = '';
         resultsDiv.style.display = 'none';
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
         return;
       }
+      
+      // Show loading indicator
+      if (loadingIndicator) loadingIndicator.style.display = 'inline-block';
       
       searchTimeout = setTimeout(() => {
         fetch(`/users/search?q=${encodeURIComponent(query)}`)
           .then(response => response.json())
           .then(users => {
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
+            
             if (users.length === 0) {
-              resultsDiv.innerHTML = '<div class="search-result-item">No users found</div>';
+              resultsDiv.innerHTML = '<div class="search-result-item no-results">No users found</div>';
               resultsDiv.style.display = 'block';
               return;
             }
@@ -171,6 +200,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectPlayer(selected);
               });
             });
+          })
+          .catch(error => {
+            console.error('Search error:', error);
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
+            resultsDiv.innerHTML = '<div class="search-result-item no-results">Error loading results</div>';
+            resultsDiv.style.display = 'block';
           });
       }, 300);
     });
@@ -187,10 +222,19 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedDiv.innerHTML = `
         <div class="selected-opponent-card">
           <strong>${player.name}</strong> <span class="elo-badge">${player.elo}</span>
-          <button type="button" class="clear-btn" onclick="clearPlayer('${netidInputId}', '${selectedDivId}', '${valueTargetId || ''}')">×</button>
+          <button type="button" class="clear-btn" onclick="clearPlayer('${netidInputId}', '${selectedDivId}', '${valueTargetId || ''}')" aria-label="Remove ${player.name}">×</button>
         </div>
       `;
       selectedDiv.style.display = 'block';
+      
+      // Announce selection to screen readers
+      const announcement = document.createElement('div');
+      announcement.setAttribute('role', 'status');
+      announcement.setAttribute('aria-live', 'polite');
+      announcement.className = 'sr-only';
+      announcement.textContent = `Selected ${player.name}`;
+      document.body.appendChild(announcement);
+      setTimeout(() => announcement.remove(), 1000);
     }
     
     // Hide results when clicking outside

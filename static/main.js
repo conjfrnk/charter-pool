@@ -268,25 +268,111 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Enable card view for tables on mobile
-  if (window.innerWidth <= 600) {
+  // Expandable leaderboard rows on mobile
+  if (window.innerWidth <= 768) {
+    // Show mobile hint
+    const mobileHint = document.querySelector('.mobile-hint');
+    if (mobileHint) mobileHint.style.display = 'block';
+    
     const leaderboardTables = document.querySelectorAll('.leaderboard-table');
     leaderboardTables.forEach(table => {
-      table.classList.add('card-view');
-      
-      // Add data-label attributes for mobile card view
-      const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
-      const rows = table.querySelectorAll('tbody tr');
+      const rows = table.querySelectorAll('tbody tr:not(.player-details-row)');
       
       rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        cells.forEach((cell, index) => {
-          if (headers[index]) {
-            cell.setAttribute('data-label', headers[index]);
+        // Skip if already has click handler
+        if (row.dataset.expandable) return;
+        row.dataset.expandable = 'true';
+        
+        row.addEventListener('click', function(e) {
+          // Don't expand if clicking a link or button
+          if (e.target.closest('a, button, form')) return;
+          
+          // Toggle expanded state
+          const isExpanded = this.classList.contains('expanded');
+          
+          // Close all other expanded rows
+          rows.forEach(r => {
+            r.classList.remove('expanded');
+            const detailsRow = r.nextElementSibling;
+            if (detailsRow && detailsRow.classList.contains('player-details-row')) {
+              const details = detailsRow.querySelector('.player-details');
+              if (details) details.classList.remove('show');
+            }
+          });
+          
+          if (!isExpanded) {
+            // Expand this row
+            this.classList.add('expanded');
+            
+            // Check if details row exists, if not create it
+            let detailsRow = this.nextElementSibling;
+            if (!detailsRow || !detailsRow.classList.contains('player-details-row')) {
+              detailsRow = createDetailsRow(this);
+              this.parentNode.insertBefore(detailsRow, this.nextSibling);
+            }
+            
+            const details = detailsRow.querySelector('.player-details');
+            if (details) {
+              setTimeout(() => details.classList.add('show'), 10);
+            }
           }
         });
       });
     });
+  }
+  
+  // Helper function to create details row
+  function createDetailsRow(playerRow) {
+    const cells = playerRow.querySelectorAll('td');
+    const colSpan = cells.length;
+    
+    // Extract player data from row (matching leaderboard.html structure)
+    const rank = cells[0]?.textContent.trim() || '-';
+    const playerName = cells[1]?.textContent.trim().replace(/\s*(Inactive|Incomplete Profile)\s*/g, '').trim() || 'Unknown';
+    const elo = cells[2]?.textContent.trim() || 'N/A';
+    const wins = cells[3]?.textContent.trim() || '0';
+    const losses = cells[4]?.textContent.trim() || '0';
+    const winRate = cells[5]?.textContent.trim() || '0%';
+    
+    // Calculate games played
+    const winsNum = parseInt(wins) || 0;
+    const lossesNum = parseInt(losses) || 0;
+    const gamesPlayed = winsNum + lossesNum;
+    
+    const detailsRow = document.createElement('tr');
+    detailsRow.className = 'player-details-row';
+    detailsRow.innerHTML = `
+      <td colspan="${colSpan}" style="padding: 0; border: none;">
+        <div class="player-details">
+          <div class="detail-item">
+            <span class="detail-label">Rank</span>
+            <span class="detail-value">${rank}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">ELO Rating</span>
+            <span class="detail-value">${elo}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Total Games</span>
+            <span class="detail-value">${gamesPlayed}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Wins</span>
+            <span class="detail-value positive">🏆 ${wins}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Losses</span>
+            <span class="detail-value negative">❌ ${losses}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Win Rate</span>
+            <span class="detail-value ${parseFloat(winRate) >= 50 ? 'positive' : 'negative'}">${winRate}</span>
+          </div>
+        </div>
+      </td>
+    `;
+    
+    return detailsRow;
   }
   
   // Scroll animations with Intersection Observer
