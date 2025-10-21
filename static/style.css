@@ -404,7 +404,9 @@ footer {
 
 /* Buttons */
 .btn {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 10px 20px;
   border-radius: 6px;
   border: none;
@@ -415,11 +417,12 @@ footer {
   transition: all var(--transition-fast);
   text-align: center;
   min-height: 44px;
-  line-height: 24px;
+  line-height: 1.5;
   touch-action: manipulation;
   position: relative;
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
+  vertical-align: middle;
 }
 
 /* Enhanced touch feedback */
@@ -1484,6 +1487,13 @@ table tr.highlight {
   display: flex;
   gap: 12px;
   margin-top: 25px;
+  align-items: stretch;
+}
+
+.form-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Error Pages */
@@ -2083,6 +2093,21 @@ table tr.highlight {
     position: relative;
     padding-right: 36px;
   }
+  
+  /* Hide Wins, Losses, Win Rate columns on mobile - only show on expand */
+  .leaderboard-table thead th:nth-child(4),
+  .leaderboard-table thead th:nth-child(5),
+  .leaderboard-table thead th:nth-child(6),
+  .leaderboard-table tbody tr:not(.player-details-row) td:nth-child(4),
+  .leaderboard-table tbody tr:not(.player-details-row) td:nth-child(5),
+  .leaderboard-table tbody tr:not(.player-details-row) td:nth-child(6) {
+    display: none;
+  }
+  
+  /* Make table full width on mobile */
+  .leaderboard-table {
+    min-width: 100%;
+  }
 }
 
 @media (max-width: 600px) {
@@ -2132,6 +2157,13 @@ table tr.highlight {
   
   .detail-value {
     font-size: 15px;
+  }
+  
+  /* Ensure table container is full width */
+  .table-container {
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
   }
   
   /* Pagination improvements on mobile */
@@ -2313,6 +2345,10 @@ table tr.highlight {
 
 .game-report-form .btn {
   margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
 }
 
 .game-report-form .btn-primary {
