@@ -250,139 +250,139 @@ def report_game():
             game_type = request.form.get("game_type", "singles").strip().lower()
             
             if game_type == "singles":
-            # Original singles game logic
-            opponent_netid = request.form.get("opponent_netid", "").strip().lower()
-            winner_netid = request.form.get("winner_netid", "").strip().lower()
+                # Original singles game logic
+                opponent_netid = request.form.get("opponent_netid", "").strip().lower()
+                winner_netid = request.form.get("winner_netid", "").strip().lower()
+                
+                # Validate opponent
+                opponent = User.query.get(opponent_netid)
+                if not opponent:
+                    flash("Opponent not found.", "error")
+                    return redirect(url_for('report_game'))
+                
+                if opponent.archived:
+                    flash("Cannot report games with archived users.", "error")
+                    return redirect(url_for('report_game'))
+                
+                if not opponent.is_active:
+                    flash("Cannot report games with inactive users. The user must complete their profile first.", "error")
+                    return redirect(url_for('report_game'))
+                
+                if opponent_netid == user.netid:
+                    flash("You cannot play against yourself!", "error")
+                    return redirect(url_for('report_game'))
+                
+                # Validate winner
+                if winner_netid not in [user.netid, opponent_netid]:
+                    flash("Winner must be one of the players.", "error")
+                    return redirect(url_for('report_game'))
+                
+                # Determine winner and loser
+                if winner_netid == user.netid:
+                    winner = user
+                    loser = opponent
+                else:
+                    winner = opponent
+                    loser = user
+                
+                # Update ELO ratings
+                elo_change = update_ratings_after_game(winner, loser, Config.ELO_K_FACTOR)
+                
+                # Create game record
+                game = Game(
+                    game_type='singles',
+                    player1_netid=user.netid,
+                    player2_netid=opponent_netid,
+                    winner_netid=winner_netid,
+                    elo_change=elo_change
+                )
+                db.session.add(game)
+                db.session.commit()
+                
+                flash(f"Game recorded! {winner.full_name} won (+{elo_change} ELO)", "success")
+                return redirect(url_for('index'))
             
-            # Validate opponent
-            opponent = User.query.get(opponent_netid)
-            if not opponent:
-                flash("Opponent not found.", "error")
-                return redirect(url_for('report_game'))
-            
-            if opponent.archived:
-                flash("Cannot report games with archived users.", "error")
-                return redirect(url_for('report_game'))
-            
-            if not opponent.is_active:
-                flash("Cannot report games with inactive users. The user must complete their profile first.", "error")
-                return redirect(url_for('report_game'))
-            
-            if opponent_netid == user.netid:
-                flash("You cannot play against yourself!", "error")
-                return redirect(url_for('report_game'))
-            
-            # Validate winner
-            if winner_netid not in [user.netid, opponent_netid]:
-                flash("Winner must be one of the players.", "error")
-                return redirect(url_for('report_game'))
-            
-            # Determine winner and loser
-            if winner_netid == user.netid:
-                winner = user
-                loser = opponent
-            else:
-                winner = opponent
-                loser = user
-            
-            # Update ELO ratings
-            elo_change = update_ratings_after_game(winner, loser, Config.ELO_K_FACTOR)
-            
-            # Create game record
-            game = Game(
-                game_type='singles',
-                player1_netid=user.netid,
-                player2_netid=opponent_netid,
-                winner_netid=winner_netid,
-                elo_change=elo_change
-            )
-            db.session.add(game)
-            db.session.commit()
-            
-            flash(f"Game recorded! {winner.full_name} won (+{elo_change} ELO)", "success")
-            return redirect(url_for('index'))
-        
-        elif game_type == "doubles":
-            # Doubles game logic
-            partner_netid = request.form.get("partner_netid", "").strip().lower()
-            opponent1_netid = request.form.get("opponent1_netid", "").strip().lower()
-            opponent2_netid = request.form.get("opponent2_netid", "").strip().lower()
-            winning_team = request.form.get("winning_team", "").strip()  # "team1" or "team2"
-            
-            # Validate all players exist
-            partner = User.query.get(partner_netid)
-            opponent1 = User.query.get(opponent1_netid)
-            opponent2 = User.query.get(opponent2_netid)
-            
-            if not partner:
-                flash("Partner not found.", "error")
-                return redirect(url_for('report_game'))
-            if not opponent1:
-                flash("First opponent not found.", "error")
-                return redirect(url_for('report_game'))
-            if not opponent2:
-                flash("Second opponent not found.", "error")
-                return redirect(url_for('report_game'))
-            
-            # Check for archived users
-            if partner.archived or opponent1.archived or opponent2.archived:
-                flash("Cannot report games with archived users.", "error")
-                return redirect(url_for('report_game'))
-            
-            # Check for inactive users
-            if not partner.is_active or not opponent1.is_active or not opponent2.is_active:
-                flash("Cannot report games with inactive users. All users must complete their profiles first.", "error")
-                return redirect(url_for('report_game'))
-            
-            # Validate all 4 players are unique
-            all_netids = [user.netid, partner_netid, opponent1_netid, opponent2_netid]
-            if len(set(all_netids)) != 4:
-                flash("All 4 players must be different!", "error")
-                return redirect(url_for('report_game'))
-            
-            # Validate winning team
-            if winning_team not in ["team1", "team2"]:
-                flash("Invalid winning team selection.", "error")
-                return redirect(url_for('report_game'))
-            
-            # Setup teams
-            team1_players = [user, partner]
-            team2_players = [opponent1, opponent2]
-            
-            # Determine winner netid (use first player of winning team)
-            if winning_team == "team1":
-                winner_netid = user.netid
-                winning_team_num = 1
-            else:
-                winner_netid = opponent1_netid
-                winning_team_num = 2
-            
-            # Update ELO ratings for all 4 players
-            elo_change = update_ratings_after_doubles_game(
-                team1_players, 
-                team2_players, 
-                winning_team_num, 
-                Config.ELO_K_FACTOR
-            )
-            
-            # Create game record
-            game = Game(
-                game_type='doubles',
-                player1_netid=user.netid,
-                player2_netid=partner_netid,
-                player3_netid=opponent1_netid,
-                player4_netid=opponent2_netid,
-                winner_netid=winner_netid,
-                elo_change=elo_change
-            )
-            db.session.add(game)
-            db.session.commit()
-            
-            if winning_team == "team1":
-                flash(f"Doubles game recorded! Your team won (+{elo_change} ELO each)", "success")
-            else:
-                flash(f"Doubles game recorded! Opponent team won ({elo_change} ELO each)", "success")
-            return redirect(url_for('index'))
+            elif game_type == "doubles":
+                # Doubles game logic
+                partner_netid = request.form.get("partner_netid", "").strip().lower()
+                opponent1_netid = request.form.get("opponent1_netid", "").strip().lower()
+                opponent2_netid = request.form.get("opponent2_netid", "").strip().lower()
+                winning_team = request.form.get("winning_team", "").strip()  # "team1" or "team2"
+                
+                # Validate all players exist
+                partner = User.query.get(partner_netid)
+                opponent1 = User.query.get(opponent1_netid)
+                opponent2 = User.query.get(opponent2_netid)
+                
+                if not partner:
+                    flash("Partner not found.", "error")
+                    return redirect(url_for('report_game'))
+                if not opponent1:
+                    flash("First opponent not found.", "error")
+                    return redirect(url_for('report_game'))
+                if not opponent2:
+                    flash("Second opponent not found.", "error")
+                    return redirect(url_for('report_game'))
+                
+                # Check for archived users
+                if partner.archived or opponent1.archived or opponent2.archived:
+                    flash("Cannot report games with archived users.", "error")
+                    return redirect(url_for('report_game'))
+                
+                # Check for inactive users
+                if not partner.is_active or not opponent1.is_active or not opponent2.is_active:
+                    flash("Cannot report games with inactive users. All users must complete their profiles first.", "error")
+                    return redirect(url_for('report_game'))
+                
+                # Validate all 4 players are unique
+                all_netids = [user.netid, partner_netid, opponent1_netid, opponent2_netid]
+                if len(set(all_netids)) != 4:
+                    flash("All 4 players must be different!", "error")
+                    return redirect(url_for('report_game'))
+                
+                # Validate winning team
+                if winning_team not in ["team1", "team2"]:
+                    flash("Invalid winning team selection.", "error")
+                    return redirect(url_for('report_game'))
+                
+                # Setup teams
+                team1_players = [user, partner]
+                team2_players = [opponent1, opponent2]
+                
+                # Determine winner netid (use first player of winning team)
+                if winning_team == "team1":
+                    winner_netid = user.netid
+                    winning_team_num = 1
+                else:
+                    winner_netid = opponent1_netid
+                    winning_team_num = 2
+                
+                # Update ELO ratings for all 4 players
+                elo_change = update_ratings_after_doubles_game(
+                    team1_players, 
+                    team2_players, 
+                    winning_team_num, 
+                    Config.ELO_K_FACTOR
+                )
+                
+                # Create game record
+                game = Game(
+                    game_type='doubles',
+                    player1_netid=user.netid,
+                    player2_netid=partner_netid,
+                    player3_netid=opponent1_netid,
+                    player4_netid=opponent2_netid,
+                    winner_netid=winner_netid,
+                    elo_change=elo_change
+                )
+                db.session.add(game)
+                db.session.commit()
+                
+                if winning_team == "team1":
+                    flash(f"Doubles game recorded! Your team won (+{elo_change} ELO each)", "success")
+                else:
+                    flash(f"Doubles game recorded! Opponent team won ({elo_change} ELO each)", "success")
+                return redirect(url_for('index'))
         
             else:
                 flash("Invalid game type.", "error")
@@ -476,23 +476,23 @@ def delete_game(game_id):
         if not game:
             flash("Game not found.", "error")
             return redirect(url_for('game_history'))
-    
-    # Check if user participated in the game
-    if user.netid not in game.get_all_player_netids():
-        flash("You can only delete games you participated in.", "error")
-        return redirect(url_for('game_history'))
-    
-    # Check if game is a tournament game
-    if game.tournament_id:
-        flash("Tournament games cannot be deleted.", "error")
-        return redirect(url_for('game_history'))
-    
-    # Check if game is recent (within 15 minutes)
-    time_diff = datetime.utcnow() - game.timestamp
-    if time_diff.total_seconds() > 900:  # 900 seconds = 15 minutes
-        flash("You can only delete games within 15 minutes of creation.", "error")
-        return redirect(url_for('game_history'))
-    
+        
+        # Check if user participated in the game
+        if user.netid not in game.get_all_player_netids():
+            flash("You can only delete games you participated in.", "error")
+            return redirect(url_for('game_history'))
+        
+        # Check if game is a tournament game
+        if game.tournament_id:
+            flash("Tournament games cannot be deleted.", "error")
+            return redirect(url_for('game_history'))
+        
+        # Check if game is recent (within 15 minutes)
+        time_diff = datetime.utcnow() - game.timestamp
+        if time_diff.total_seconds() > 900:  # 900 seconds = 15 minutes
+            flash("You can only delete games within 15 minutes of creation.", "error")
+            return redirect(url_for('game_history'))
+        
         # Reverse ELO changes
         if game.is_doubles():
             # For doubles, reverse ELO for all 4 players
