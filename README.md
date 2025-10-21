@@ -8,16 +8,16 @@ High-performance pool tracking application for Charter House at Princeton Univer
 
 ```bash
 # 1. Apply database indexes (2 minutes)
-python3 migrate_add_composite_indexes.py
+python3 archive/migrate_add_composite_indexes.py
 
 # 2. Build minified assets (1 minute)
-python3 build_assets.py
+python3 archive/build_assets.py
 
 # 3. Restart application (1 minute)
 sudo rcctl restart gunicorn_chool
 
 # 4. Verify deployment (1 minute)
-python3 verify_performance.py
+python3 archive/verify_performance.py
 ```
 
 ## Performance Improvements
@@ -78,7 +78,7 @@ git commit -am "Pre-v2.0.0 backup"
 
 ### Step 2: Apply Database Indexes
 ```bash
-python3 migrate_add_composite_indexes.py
+python3 archive/migrate_add_composite_indexes.py
 ```
 
 Expected output:
@@ -101,7 +101,7 @@ Adding composite database indexes for maximum performance...
 
 ### Step 3: Build Optimized Assets
 ```bash
-python3 build_assets.py
+python3 archive/build_assets.py
 ```
 
 Expected output:
@@ -137,7 +137,7 @@ gunicorn -c gunicorn.conf.py app:app
 ### Step 5: Verify Deployment
 ```bash
 # Run comprehensive verification
-python3 verify_performance.py
+python3 archive/verify_performance.py
 
 # Check health endpoint
 curl http://localhost:8000/health
@@ -303,15 +303,16 @@ Note: Database indexes can be left in place - they don't cause any issues.
 - `performance.py` - Performance monitoring
 - `gunicorn.conf.py` - Production configuration
 
-### Tools
-- `migrate_add_composite_indexes.py` - Database optimization
-- `build_assets.py` - Asset minification
-- `verify_performance.py` - Comprehensive testing
+### Tools (in archive/)
+- `archive/migrate_add_composite_indexes.py` - Database optimization
+- `archive/build_assets.py` - Asset minification
+- `archive/verify_performance.py` - Comprehensive testing
 
-### Documentation
-- `PERFORMANCE_IMPROVEMENTS.md` - Technical details
-- `CHANGELOG_v2.md` - Complete changelog
-- `DEPLOYMENT_CHECKLIST.txt` - Operations guide
+### Documentation (in archive/)
+- `archive/PERFORMANCE_IMPROVEMENTS.md` - Technical details
+- `archive/CHANGELOG_v2.md` - Complete changelog
+- `archive/DEPLOYMENT_CHECKLIST.txt` - Operations guide
+- `archive/MIGRATION_GUIDE.txt` - Step-by-step migration
 
 ## System Requirements
 
@@ -364,17 +365,20 @@ python3 verify_performance.py
 
 ## Production Deployment
 
-See `DEPLOYMENT_CHECKLIST.txt` for complete deployment procedures including:
+See `archive/DEPLOYMENT_CHECKLIST.txt` for complete deployment procedures including:
 - Pre-deployment backup
 - Step-by-step verification
 - Post-deployment monitoring
 - Rollback procedures
 
+For detailed migration instructions, see `archive/MIGRATION_GUIDE.txt`
+
 ## Support
 
 - Health Check: `curl http://localhost:8000/health`
-- Verification: `python3 verify_performance.py`
+- Verification: `python3 archive/verify_performance.py`
 - Logs: `/var/log/gunicorn_chool.log`
+- Documentation: See `archive/` directory for detailed guides
 
 ## License
 
