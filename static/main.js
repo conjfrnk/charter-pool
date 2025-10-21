@@ -171,19 +171,176 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Lazy loading for heavy content (if needed in future)
+  // Lazy loading for heavy content
   if ('IntersectionObserver' in window) {
     const lazyElements = document.querySelectorAll('[data-lazy]');
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           const element = entry.target;
-          // Trigger lazy loading here
+          
+          // Lazy load images
+          if (element.dataset.src) {
+            element.src = element.dataset.src;
+            element.removeAttribute('data-src');
+          }
+          
+          // Lazy load content
+          if (element.dataset.lazyContent) {
+            const url = element.dataset.lazyContent;
+            fetch(url)
+              .then(response => response.text())
+              .then(html => {
+                element.innerHTML = html;
+              })
+              .catch(err => console.error('Failed to load content:', err));
+          }
+          
           observer.unobserve(element);
         }
       });
+    }, {
+      rootMargin: '50px' // Load slightly before entering viewport
     });
     
     lazyElements.forEach(el => observer.observe(el));
   }
+  
+  // Prefetch links on hover for faster navigation
+  if ('requestIdleCallback' in window) {
+    const prefetchLink = (url) => {
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.href = url;
+      document.head.appendChild(link);
+    };
+    
+    const prefetchedUrls = new Set();
+    
+    document.addEventListener('mouseover', (e) => {
+      const link = e.target.closest('a[href^="/"]');
+      if (link && !prefetchedUrls.has(link.href)) {
+        requestIdleCallback(() => {
+          prefetchLink(link.href);
+          prefetchedUrls.add(link.href);
+        });
+      }
+    }, { passive: true });
+  }
+  
+  // Performance: Use requestAnimationFrame for smooth animations
+  let rafId = null;
+  const smoothScroll = (target) => {
+    if (rafId) cancelAnimationFrame(rafId);
+    
+    const start = window.pageYOffset;
+    const end = target.offsetTop;
+    const distance = end - start;
+    const duration = 500;
+    const startTime = performance.now();
+    
+    const animate = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+      
+      window.scrollTo(0, start + distance * ease);
+      
+      if (progress < 1) {
+        rafId = requestAnimationFrame(animate);
+      }
+    };
+    
+    rafId = requestAnimationFrame(animate);
+  };
+  
+  // Use smooth scroll for anchor links
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href^="#"]');
+    if (link) {
+      e.preventDefault();
+      const target = document.querySelector(link.getAttribute('href'));
+      if (target) {
+        smoothScroll(target);
+      }
+    }
+  });
+  
+  // Client-side caching for AJAX requests
+  const requestCache = new Map();
+  const cachedFetch = (url, options = {}) => {
+    const cacheKey = `${url}:${JSON.stringify(options)}`;
+    const cached = requestCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < 60000) { // 1 minute cache
+      return Promise.resolve(cached.data);
+    }
+    
+    return fetch(url, options)
+      .then(response => response.clone().json().then(data => {
+        requestCache.set(cacheKey, { data, timestamp: Date.now() });
+        return data;
+      }));
+  };
+  
+  // Expose cached fetch globally for other scripts
+  window.cachedFetch = cachedFetch;
+  
+  // Performance: Batch DOM updates
+  let updateQueue = [];
+  let updateScheduled = false;
+  
+  const batchDOMUpdate = (updateFn) => {
+    updateQueue.push(updateFn);
+    
+    if (!updateScheduled) {
+      updateScheduled = true;
+      requestAnimationFrame(() => {
+        updateQueue.forEach(fn => fn());
+        updateQueue = [];
+        updateScheduled = false;
+      });
+    }
+  };
+  
+  window.batchDOMUpdate = batchDOMUpdate;
+  
+  // Virtual scrolling for large tables (if needed)
+  const initVirtualScroll = (container, rowHeight = 50) => {
+    if (!container) return;
+    
+    const rows = Array.from(container.querySelectorAll('tbody tr'));
+    if (rows.length < 100) return; // Only virtualize large lists
+    
+    const totalHeight = rows.length * rowHeight;
+    const viewportHeight = container.clientHeight;
+    const visibleRows = Math.ceil(viewportHeight / rowHeight) + 2; // Buffer rows
+    
+    let scrollTop = 0;
+    
+    container.addEventListener('scroll', () => {
+      scrollTop = container.scrollTop;
+      const startIdx = Math.floor(scrollTop / rowHeight);
+      const endIdx = Math.min(startIdx + visibleRows, rows.length);
+      
+      batchDOMUpdate(() => {
+        rows.forEach((row, idx) => {
+          if (idx >= startIdx && idx < endIdx) {
+            row.style.display = '';
+            row.style.transform = `translateY(${idx * rowHeight}px)`;
+          } else {
+            row.style.display = 'none';
+          }
+        });
+      });
+    }, { passive: true });
+  };
+  
+  // Initialize virtual scroll for large tables
+  const largeTables = document.querySelectorAll('.table-container table');
+  largeTables.forEach(table => {
+    if (table.querySelectorAll('tbody tr').length > 100) {
+      initVirtualScroll(table.closest('.table-container'));
+    }
+  });
 });

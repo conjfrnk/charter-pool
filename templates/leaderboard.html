@@ -4,6 +4,46 @@
 <div class="page-container">
   <h2>ELO Leaderboard</h2>
   
+  <!-- Card layout for mobile -->
+  <div class="table-cards">
+    {% for user in users %}
+    <div class="table-card {% if current_user and user.netid == current_user.netid %}highlight{% endif %}">
+      <div class="table-card-header">
+        <div class="table-card-rank">{{ loop.index }}</div>
+        <div class="table-card-name">
+          {% if user.first_name and user.last_name %}
+            {{ user.full_name }}
+            {% if current_admin and not user.is_active %}
+              <span class="badge badge-inactive">Inactive</span>
+            {% endif %}
+          {% else %}
+            <span class="incomplete-name">Incomplete Profile</span>
+            {% if current_admin %}
+              <span class="badge badge-inactive">Inactive</span>
+            {% endif %}
+          {% endif %}
+        </div>
+        <div class="table-card-elo">{{ user.elo_rating }}</div>
+      </div>
+      <div class="table-card-stats">
+        <div class="table-card-stat">
+          <span class="table-card-stat-label">Wins</span>
+          <span class="table-card-stat-value">{{ user.get_win_count() }}</span>
+        </div>
+        <div class="table-card-stat">
+          <span class="table-card-stat-label">Losses</span>
+          <span class="table-card-stat-value">{{ user.get_loss_count() }}</span>
+        </div>
+        <div class="table-card-stat">
+          <span class="table-card-stat-label">Win Rate</span>
+          <span class="table-card-stat-value">{{ user.get_win_rate() }}%</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  
+  <!-- Desktop table layout -->
   <div class="table-container">
     <table class="leaderboard-table full">
     <thead>

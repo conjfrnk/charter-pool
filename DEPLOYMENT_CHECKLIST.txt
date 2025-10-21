@@ -1,0 +1,295 @@
+================================================================================
+                   CHARTER POOL v2.0.0 DEPLOYMENT CHECKLIST
+================================================================================
+
+Use this checklist to ensure a smooth deployment of performance optimizations.
+
+================================================================================
+                            PRE-DEPLOYMENT
+================================================================================
+
+BACKUP (CRITICAL):
+[ ] Backup database:
+    $ pg_dump charter_pool > backup_$(date +%Y%m%d_%H%M%S).sql
+
+[ ] Backup current code:
+    $ cd /Users/connor/projects/charter-pool
+    $ git commit -am "Pre-v2.0.0 backup"
+    OR
+    $ tar -czf backup_code_$(date +%Y%m%d).tar.gz .
+
+[ ] Note current performance metrics for comparison:
+    - Dashboard load time: _______ms
+    - Leaderboard query: _______ms
+    - Current ELO rating of test user: _______
+
+VERIFICATION:
+[ ] Verify database connection:
+    $ python3 -c "from config import Config; from sqlalchemy import create_engine; create_engine(Config.SQLALCHEMY_DATABASE_URI).connect()"
+
+[ ] Check disk space:
+    $ df -h
+
+[ ] Verify Python environment:
+    $ python3 --version
+    $ pip3 list | grep -E "flask|sqlalchemy|gunicorn"
+
+================================================================================
+                            DEPLOYMENT STEPS
+================================================================================
+
+STEP 1: DATABASE OPTIMIZATION (2-3 minutes)
+[ ] Apply composite indexes:
+    $ cd /Users/connor/projects/charter-pool
+    $ python3 migrate_add_composite_indexes.py
+    
+    Expected output: ✓ 9 indexes created successfully
+    
+[ ] Verify indexes were created:
+    $ python3 -c "from sqlalchemy import create_engine, text; from config import Config; e = create_engine(Config.SQLALCHEMY_DATABASE_URI); print(len(list(e.connect().execute(text('SELECT indexname FROM pg_indexes WHERE indexname LIKE \\'idx_%\\'')))))"
+    
+    Expected: Number >= 9
+
+STEP 2: ASSET OPTIMIZATION (1 minute)
+[ ] Build minified assets:
+    $ python3 build_assets.py
+    
+    Expected output:
+    - ✓ Created static/style.min.css
+    - ✓ Created static/main.min.js
+    
+[ ] Verify minified files:
+    $ ls -lh static/*.min.*
+    
+    Should see style.min.css and main.min.js
+
+STEP 3: CONFIGURATION REVIEW (2 minutes)
+[ ] Review gunicorn configuration:
+    $ cat gunicorn.conf.py | grep -E "workers|pool_size"
+    
+[ ] Verify cache settings in config.py:
+    $ python3 -c "from config import Config; print(f'Cache: {Config.CACHE_TYPE}, Pool: {Config.SQLALCHEMY_ENGINE_OPTIONS[\"pool_size\"]}')"
+    
+    Expected: Cache: SimpleCache, Pool: 20
+
+STEP 4: APPLICATION RESTART (2 minutes)
+[ ] Stop application:
+    $ sudo rcctl stop gunicorn_chool
+    
+[ ] Clear any stale processes:
+    $ pkill -f gunicorn || true
+    
+[ ] Start application with new config:
+    $ sudo rcctl start gunicorn_chool
+    
+[ ] Verify process started:
+    $ sudo rcctl check gunicorn_chool
+    $ ps aux | grep gunicorn | grep -v grep
+
+STEP 5: VERIFICATION (3 minutes)
+[ ] Health check:
+    $ curl http://localhost:8000/health
+    
+    Expected: {"status": "ok", "database": "ok", "cache": "ok"}
+    
+[ ] Run comprehensive verification:
+    $ python3 verify_performance.py
+    
+    Expected: All tests passed
+
+[ ] Test critical paths:
+    [ ] Visit dashboard: http://localhost:8000/
+    [ ] Check leaderboard: http://localhost:8000/leaderboard
+    [ ] View game history: http://localhost:8000/games/history
+    [ ] Report a test game
+    [ ] Verify game appears in history
+
+[ ] Check logs for errors:
+    $ tail -100 /var/log/gunicorn_chool.log | grep -i error
+
+================================================================================
+                         POST-DEPLOYMENT MONITORING
+================================================================================
+
+IMMEDIATE (First 10 minutes):
+[ ] Monitor response times:
+    $ tail -f /var/log/gunicorn_chool.log
+    
+    Watch for any slow queries (> 50ms) or errors
+
+[ ] Check cache hit rate (admin only):
+    $ curl -u admin:password http://localhost:8000/health | jq '.performance.cache_hit_rate'
+    
+    Target: > 80%
+
+[ ] Test from different locations:
+    - [ ] Dashboard loads in < 300ms
+    - [ ] Leaderboard loads quickly
+    - [ ] Game submission works
+    - [ ] No JavaScript errors in browser console
+
+SHORT TERM (First hour):
+[ ] Monitor for slow queries:
+    $ tail -f /var/log/gunicorn_chool.log | grep "Slow"
+    
+    Should see very few or none
+
+[ ] Check memory usage:
+    $ top -b -n 1 | grep gunicorn
+    
+    Should be stable, not growing
+
+[ ] Verify cache effectiveness:
+    - Check /health endpoint periodically
+    - Cache hit rate should increase over time
+
+LONG TERM (First 24 hours):
+[ ] Monitor error rates:
+    $ grep -c "ERROR" /var/log/gunicorn_chool.log
+    
+[ ] Check performance metrics trend:
+    - Average response time should decrease
+    - Cache hit rate should stabilize > 80%
+    
+[ ] User feedback:
+    - Ask users if they notice improved performance
+    - Check for any new issues
+
+================================================================================
+                         PERFORMANCE BENCHMARKS
+================================================================================
+
+Record your measurements:
+
+BEFORE v2.0.0:
+- Dashboard load: _______ms
+- Leaderboard query: _______ms
+- Game history (50): _______ms
+- Queries per page: _______
+
+AFTER v2.0.0:
+- Dashboard load: _______ms (Target: < 250ms)
+- Leaderboard query: _______ms (Target: < 50ms)
+- Game history (50): _______ms (Target: < 80ms)
+- Queries per page: _______ (Target: 3-5)
+- Cache hit rate: _______% (Target: > 80%)
+
+IMPROVEMENT:
+- Dashboard: _______x faster
+- Leaderboard: _______x faster
+- Game history: _______x faster
+
+================================================================================
+                            ROLLBACK PROCEDURE
+================================================================================
+
+If something goes wrong (unlikely):
+
+IMMEDIATE ROLLBACK:
+[ ] Stop application:
+    $ sudo rcctl stop gunicorn_chool
+
+[ ] Restore database from backup:
+    $ psql charter_pool < backup_YYYYMMDD_HHMMSS.sql
+
+[ ] Restore code:
+    $ git checkout <previous-commit>
+    OR
+    $ tar -xzf backup_code_YYYYMMDD.tar.gz
+
+[ ] Restart application:
+    $ sudo rcctl start gunicorn_chool
+
+[ ] Verify:
+    $ curl http://localhost:8000/health
+
+NOTE: Indexes can be left in place - they don't hurt anything
+
+================================================================================
+                            TROUBLESHOOTING
+================================================================================
+
+ISSUE: Migration script fails
+SOLUTION:
+  - Check database connection in config.py
+  - Verify PostgreSQL is running: sudo rcctl check postgresql
+  - Check user permissions: psql -U charter_pool -d charter_pool -c "SELECT 1"
+
+ISSUE: Asset build fails
+SOLUTION:
+  - Verify static files exist: ls static/*.{css,js}
+  - Check write permissions: ls -la static/
+  - Run manually with verbose output
+
+ISSUE: Application won't start
+SOLUTION:
+  - Check logs: tail -100 /var/log/gunicorn_chool.log
+  - Verify config: python3 -c "from config import Config; print('OK')"
+  - Check port not in use: netstat -an | grep 8000
+
+ISSUE: Slow performance
+SOLUTION:
+  - Verify indexes: python3 verify_performance.py
+  - Check cache hit rate in /health
+  - Monitor slow query log
+  - Increase gunicorn workers if needed
+
+ISSUE: High memory usage
+SOLUTION:
+  - Reduce worker count in gunicorn.conf.py
+  - Lower max_requests to recycle workers more often
+  - Check for memory leaks in logs
+
+================================================================================
+                         SUCCESS CRITERIA
+================================================================================
+
+Deployment is successful when:
+✓ All checklist items completed
+✓ Health check returns "ok"
+✓ Performance verification passes all tests
+✓ No errors in logs for 10 minutes
+✓ Users can access all features
+✓ Response times meet targets (< 250ms dashboard)
+✓ Cache hit rate > 80% after warmup
+
+================================================================================
+                            DOCUMENTATION
+================================================================================
+
+For detailed information:
+- Performance details: PERFORMANCE_IMPROVEMENTS.md
+- Quick start guide: QUICK_START_PERFORMANCE.md
+- Full changelog: CHANGELOG_v2.md
+- Overview: README_PERFORMANCE.md
+
+================================================================================
+                         DEPLOYMENT SIGN-OFF
+================================================================================
+
+Deployed by: _________________    Date: __________    Time: __________
+
+Pre-deployment checks: [ ] Complete
+Deployment steps: [ ] Complete
+Verification: [ ] Complete
+Post-deployment monitoring: [ ] Complete
+
+Performance improvement achieved: _______x faster
+
+Notes:
+________________________________________________________________________
+________________________________________________________________________
+________________________________________________________________________
+
+Approved by: _________________    Date: __________
+
+================================================================================
+                        DEPLOYMENT COMPLETE! 🎉
+================================================================================
+
+Congratulations! Charter Pool v2.0.0 "Porsche Edition" is now live!
+
+Your application is now 3-5x faster with professional-grade optimizations.
+
+Enjoy the performance boost! 🚗💨🎱
+

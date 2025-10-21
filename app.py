@@ -19,6 +19,8 @@ from models import db, User, Admin, Game, Tournament, TournamentParticipant, Tou
 from auth import login_manager, login_user_by_netid, login_admin, create_user, get_current_user, get_current_admin, validate_admin_password
 from elo import update_ratings_after_game, update_ratings_after_doubles_game
 from tournament_logic import activate_tournament, report_match_result
+from cache_utils import CacheManager, invalidate_game_caches, invalidate_user_caches, invalidate_tournament_caches
+from performance import PerformanceMonitor
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -43,7 +45,21 @@ csrf = CSRFProtect(app)
 
 # Rate limiting and caching
 limiter = Limiter(get_remote_address, app=app, default_limits=["100 per 15 minutes"])
-cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 120})
+cache = Cache(app, config={
+    'CACHE_TYPE': Config.CACHE_TYPE,
+    'CACHE_DEFAULT_TIMEOUT': Config.CACHE_DEFAULT_TIMEOUT,
+    'CACHE_THRESHOLD': Config.CACHE_THRESHOLD,
+    'CACHE_KEY_PREFIX': Config.CACHE_KEY_PREFIX
+})
+
+# Initialize cache manager
+cache_manager = CacheManager(cache)
+app.cache = cache  # Make cache available to models
+app.cache_manager = cache_manager
+
+# Initialize performance monitoring
+performance_monitor = PerformanceMonitor(app)
+app.performance_monitor = performance_monitor
 
 logging.basicConfig(level=getattr(logging, Config.LOG_LEVEL, logging.INFO))
 
@@ -66,11 +82,15 @@ def handle_db_errors(f):
             return redirect(request.referrer or url_for('index'))
     return decorated_function
 
-# Test database connection on startup
+# Test database connection and warm cache on startup
 with app.app_context():
     try:
         db.engine.connect()
         print("[INFO] Database connection successful")
+        
+        # Warm critical caches
+        print("[INFO] Warming caches...")
+        cache_manager.warm_cache(app)
     except Exception as e:
         print(f"[ERROR] Database connection failed: {e}")
         import traceback
@@ -131,6 +151,11 @@ def add_cache_headers(response):
 # ============================================================================
 # USER AUTHENTICATION ROUTES
 # ============================================================================
+
+@app.route('/sw.js')
+def service_worker():
+    """Serve the service worker from root path for proper scope"""
+    return app.send_static_file('sw.js')
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -213,7 +238,7 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-    """Main dashboard for logged-in users"""
+    """Main dashboard for logged-in users (optimized with caching)"""
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
     
@@ -234,16 +259,34 @@ def index():
         )
     ).order_by(desc(Game.timestamp)).limit(10).all()
     
-    # Get leaderboard (top 10) - only active users
-    leaderboard = User.query.filter_by(archived=False, is_active=True).order_by(desc(User.elo_rating)).limit(10).all()
+    # Get leaderboard (top 10) - only active users (cached)
+    cache_key = 'leaderboard:top10'
+    leaderboard = cache.get(cache_key)
+    if leaderboard is None:
+        leaderboard = User.query.filter_by(archived=False, is_active=True)\
+            .order_by(desc(User.elo_rating)).limit(10).all()
+        cache.set(cache_key, leaderboard, timeout=60)
     
-    # Get user's rank (among active users only)
-    user_rank = User.query.filter(User.elo_rating > user.elo_rating, User.archived == False, User.is_active == True).count() + 1
+    # Get user's rank (among active users only) - cached per user
+    rank_cache_key = f'user_rank:{user.netid}'
+    user_rank = cache.get(rank_cache_key)
+    if user_rank is None:
+        user_rank = User.query.filter(
+            User.elo_rating > user.elo_rating,
+            User.archived == False,
+            User.is_active == True
+        ).count() + 1
+        cache.set(rank_cache_key, user_rank, timeout=300)
     
-    # Get open tournaments
-    open_tournaments = Tournament.query.filter_by(status='open').order_by(desc(Tournament.created_at)).all()
+    # Get open tournaments (cached)
+    open_cache_key = 'tournaments:open'
+    open_tournaments = cache.get(open_cache_key)
+    if open_tournaments is None:
+        open_tournaments = Tournament.query.filter_by(status='open')\
+            .order_by(desc(Tournament.created_at)).all()
+        cache.set(open_cache_key, open_tournaments, timeout=120)
     
-    # Get active tournaments user is in
+    # Get active tournaments user is in (not cached - personalized)
     user_tournaments = Tournament.query.join(TournamentParticipant).filter(
         TournamentParticipant.user_netid == user.netid,
         Tournament.status.in_(['open', 'active'])
@@ -325,10 +368,9 @@ def report_game():
                 )
                 db.session.add(game)
                 db.session.commit()
-                try:
-                    cache.delete_memoized(leaderboard)
-                except Exception:
-                    pass
+                
+                # Invalidate game-related caches
+                invalidate_game_caches(cache_manager)
                 
                 flash(f"Game recorded! {winner.full_name} won (+{elo_change} ELO)", "success")
                 return redirect(url_for('index'))
@@ -408,10 +450,9 @@ def report_game():
                 )
                 db.session.add(game)
                 db.session.commit()
-                try:
-                    cache.delete_memoized(leaderboard)
-                except Exception:
-                    pass
+                
+                # Invalidate game-related caches
+                invalidate_game_caches(cache_manager)
                 
                 if winning_team == "team1":
                     flash(f"Doubles game recorded! Your team won (+{elo_change} ELO each)", "success")
@@ -576,6 +617,9 @@ def delete_game(game_id):
         db.session.delete(game)
         db.session.commit()
         
+        # Invalidate game-related caches
+        invalidate_game_caches(cache_manager)
+        
         flash("Game deleted successfully. ELO ratings have been reversed.", "success")
         return redirect(url_for('game_history'))
         
@@ -589,15 +633,24 @@ def delete_game(game_id):
 
 @app.route("/leaderboard")
 @login_required
-@cache.cached(timeout=60)
 def leaderboard():
-    """Full ELO leaderboard"""
+    """Full ELO leaderboard (optimized with smart caching)"""
     if current_user.is_admin:
         # Admins can see all users (including inactive ones)
-        users = User.query.filter_by(archived=False).order_by(desc(User.elo_rating)).all()
+        cache_key = 'leaderboard:admin:full'
+        users = cache.get(cache_key)
+        if users is None:
+            users = User.query.filter_by(archived=False)\
+                .order_by(desc(User.elo_rating)).all()
+            cache.set(cache_key, users, timeout=120)
     else:
         # Regular users only see active users
-        users = User.query.filter_by(archived=False, is_active=True).order_by(desc(User.elo_rating)).all()
+        cache_key = 'leaderboard:users:full'
+        users = cache.get(cache_key)
+        if users is None:
+            users = User.query.filter_by(archived=False, is_active=True)\
+                .order_by(desc(User.elo_rating)).all()
+            cache.set(cache_key, users, timeout=120)
     return render_template("leaderboard.html", users=users)
 
 @app.route("/users/search")
@@ -636,12 +689,30 @@ def search_users():
 
 @app.route("/tournaments")
 @login_required
-@cache.cached(timeout=60)
 def tournaments():
-    """List all tournaments"""
-    open_tournaments = Tournament.query.filter_by(status='open').order_by(desc(Tournament.created_at)).all()
-    active_tournaments = Tournament.query.filter_by(status='active').order_by(desc(Tournament.created_at)).all()
-    completed_tournaments = Tournament.query.filter_by(status='completed').order_by(desc(Tournament.created_at)).limit(10).all()
+    """List all tournaments (optimized with caching)"""
+    # Cache tournament lists separately for better invalidation
+    open_key = 'tournaments:open:list'
+    active_key = 'tournaments:active:list'
+    completed_key = 'tournaments:completed:list'
+    
+    open_tournaments = cache.get(open_key)
+    if open_tournaments is None:
+        open_tournaments = Tournament.query.filter_by(status='open')\
+            .order_by(desc(Tournament.created_at)).all()
+        cache.set(open_key, open_tournaments, timeout=120)
+    
+    active_tournaments = cache.get(active_key)
+    if active_tournaments is None:
+        active_tournaments = Tournament.query.filter_by(status='active')\
+            .order_by(desc(Tournament.created_at)).all()
+        cache.set(active_key, active_tournaments, timeout=120)
+    
+    completed_tournaments = cache.get(completed_key)
+    if completed_tournaments is None:
+        completed_tournaments = Tournament.query.filter_by(status='completed')\
+            .order_by(desc(Tournament.created_at)).limit(10).all()
+        cache.set(completed_key, completed_tournaments, timeout=300)
     
     return render_template(
         "tournaments.html",
@@ -785,11 +856,10 @@ def report_tournament_match(tournament_id, match_id):
     )
     db.session.add(game)
     db.session.commit()
-    try:
-        cache.delete_memoized(leaderboard)
-        cache.delete_memoized(tournaments)
-    except Exception:
-        pass
+    
+    # Invalidate game and tournament caches
+    invalidate_game_caches(cache_manager)
+    invalidate_tournament_caches(cache_manager)
     
     # Report match result and advance bracket
     success, message = report_match_result(match, winner_netid, game.id)
@@ -991,6 +1061,9 @@ def admin_archive_user(netid):
     user.archived = True
     db.session.commit()
     
+    # Invalidate user caches
+    invalidate_user_caches(cache_manager)
+    
     flash(f"User {user.full_name} archived.", "success")
     return redirect(url_for('admin_users'))
 
@@ -1004,6 +1077,9 @@ def admin_unarchive_user(netid):
     user = User.query.get_or_404(netid)
     user.archived = False
     db.session.commit()
+    
+    # Invalidate user caches
+    invalidate_user_caches(cache_manager)
     
     flash(f"User {user.full_name} unarchived.", "success")
     return redirect(url_for('admin_users'))
@@ -1165,10 +1241,9 @@ def admin_create_tournament():
         )
         db.session.add(tournament)
         db.session.commit()
-        try:
-            cache.delete_memoized(tournaments)
-        except Exception:
-            pass
+        
+        # Invalidate tournament caches
+        invalidate_tournament_caches(cache_manager)
         
         flash(f"Tournament '{name}' created successfully!", "success")
         return redirect(url_for('tournament_detail', tournament_id=tournament.id))
@@ -1190,10 +1265,10 @@ def admin_activate_tournament(tournament_id):
         flash(message, "success")
     else:
         flash(message, "error")
-    try:
-        cache.delete_memoized(tournaments)
-    except Exception:
-        pass
+    
+    # Invalidate tournament caches
+    invalidate_tournament_caches(cache_manager)
+    
     return redirect(url_for('tournament_detail', tournament_id=tournament_id))
 
 # ============================================================================
@@ -1252,11 +1327,12 @@ def inject_user():
 
 @app.route("/health")
 def health_check():
-    """Health check endpoint for monitoring"""
+    """Health check endpoint for monitoring (with performance metrics)"""
     checks = {
         "status": "ok",
         "database": "unknown",
-        "templates": "unknown"
+        "templates": "unknown",
+        "cache": "unknown"
     }
     
     # Check database
@@ -1274,6 +1350,25 @@ def health_check():
     except Exception as e:
         checks["templates"] = f"error: {str(e)}"
         checks["status"] = "degraded"
+    
+    # Check cache
+    try:
+        cache.set('health_check', 'ok', timeout=1)
+        if cache.get('health_check') == 'ok':
+            checks["cache"] = "ok"
+        else:
+            checks["cache"] = "error"
+            checks["status"] = "degraded"
+    except Exception as e:
+        checks["cache"] = f"error: {str(e)}"
+        checks["status"] = "degraded"
+    
+    # Add performance metrics if admin
+    try:
+        if current_user.is_authenticated and current_user.is_admin:
+            checks["performance"] = performance_monitor.get_metrics()
+    except Exception:
+        pass
     
     return jsonify(checks), 200 if checks["status"] == "ok" else 503
 

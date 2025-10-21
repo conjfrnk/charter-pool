@@ -21,13 +21,15 @@ class Config:
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Database connection pooling for performance
+    # Database connection pooling for performance (optimized for OpenBSD)
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 10,          # Number of connections to maintain
-        'pool_recycle': 3600,     # Recycle connections after 1 hour
+        'pool_size': 20,          # Increased for better concurrency (was 10)
+        'pool_recycle': 300,      # Recycle connections after 5 minutes for OpenBSD stability
         'pool_pre_ping': True,    # Verify connections before using
-        'max_overflow': 20,       # Allow up to 20 additional connections
-        'pool_timeout': 30        # Timeout after 30 seconds
+        'max_overflow': 30,       # Allow up to 30 additional connections (was 20)
+        'pool_timeout': 30,       # Timeout after 30 seconds
+        'echo_pool': False,       # Set to True for connection pool debugging
+        'pool_use_lifo': True,    # Use LIFO for better connection reuse
     }
     
     # Flask-Compress configuration
@@ -49,6 +51,12 @@ class Config:
     SESSION_COOKIE_SECURE = FORCE_HTTPS  # Secure cookies in production with HTTPS
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    
+    # Cache configuration (optimized for performance)
+    CACHE_TYPE = 'SimpleCache'
+    CACHE_DEFAULT_TIMEOUT = 300  # 5 minutes default
+    CACHE_THRESHOLD = 500        # Maximum number of items to cache
+    CACHE_KEY_PREFIX = 'charter_pool_'
     
     # ELO rating configuration
     ELO_K_FACTOR = 32

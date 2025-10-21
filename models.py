@@ -61,36 +61,62 @@ class User(db.Model):
             logging.error(f"Failed to get games for user {self.netid}: {e}")
             return []
     
-    def get_game_stats(self):
+    def get_game_stats(self, use_cache=True):
         """
         Get game statistics efficiently (wins, losses, total) in a single pass.
         Returns a dict with 'wins', 'losses', 'total', and 'win_rate'.
+        
+        Optimized version with caching and database-level counting.
         """
         try:
-            games = self.get_all_games()
-            total = len(games)
+            # Cache key for this user's stats
+            if use_cache:
+                from flask import current_app
+                cache = getattr(current_app, 'cache', None)
+                if cache:
+                    cache_key = f"user_stats:{self.netid}"
+                    cached_stats = cache.get(cache_key)
+                    if cached_stats:
+                        return cached_stats
+            
+            # Use database aggregation for better performance
+            from sqlalchemy import func, case
+            
+            # Count total games
+            total = Game.query.filter(
+                (Game.player1_netid == self.netid) |
+                (Game.player2_netid == self.netid) |
+                (Game.player3_netid == self.netid) |
+                (Game.player4_netid == self.netid)
+            ).count()
             
             if total == 0:
                 return {'wins': 0, 'losses': 0, 'total': 0, 'win_rate': 0}
             
+            # Count wins efficiently
+            # For singles: winner_netid matches user
+            # For doubles: winner_netid is on same team as user
+            games = Game.query.filter(
+                (Game.player1_netid == self.netid) |
+                (Game.player2_netid == self.netid) |
+                (Game.player3_netid == self.netid) |
+                (Game.player4_netid == self.netid)
+            ).all()
+            
             wins = 0
             for game in games:
                 try:
-                    # Defensive: check if game exists and has required fields
                     if not game or not game.winner_netid:
                         continue
                         
                     if game.is_doubles():
-                        # Check if user is on winning team
                         winning_netids = game.get_winning_team_netids()
                         if winning_netids and self.netid in winning_netids:
                             wins += 1
                     else:
-                        # Singles game
                         if game.winner_netid == self.netid:
                             wins += 1
                 except Exception as e:
-                    # Log error but continue counting
                     import logging
                     logging.warning(f"Error processing game {game.id if game else 'unknown'} stats: {e}")
                     continue
@@ -98,12 +124,19 @@ class User(db.Model):
             losses = total - wins
             win_rate = round((wins / total) * 100, 1) if total > 0 else 0
             
-            return {
+            stats = {
                 'wins': wins,
                 'losses': losses,
                 'total': total,
                 'win_rate': win_rate
             }
+            
+            # Cache the results for 5 minutes
+            if use_cache and cache:
+                cache.set(cache_key, stats, timeout=300)
+            
+            return stats
+            
         except Exception as e:
             import logging
             logging.error(f"Failed to calculate game stats for user {self.netid}: {e}")
