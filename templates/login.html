@@ -7,6 +7,7 @@
     <p class="subtitle">Enter your NetID to continue</p>
     
     <form method="POST" action="{{ url_for('login') }}">
+      {{ csrf_token() }}
       <div class="form-group">
         <label for="netid">NetID</label>
         <input type="text" id="netid" name="netid" required autofocus placeholder="e.g., jdoe">

@@ -44,7 +44,9 @@ class Config:
     
     # Session configuration (no auto-logout)
     PERMANENT_SESSION_LIFETIME = timedelta(days=365)  # Sessions last 1 year (effectively permanent)
-    SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+    # HTTPS enforcement toggle (set FORCE_HTTPS=true in environment for production)
+    FORCE_HTTPS = os.environ.get('FORCE_HTTPS', 'false').lower() == 'true'
+    SESSION_COOKIE_SECURE = FORCE_HTTPS  # Secure cookies in production with HTTPS
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     
@@ -55,4 +57,7 @@ class Config:
     # Admin configuration
     DEFAULT_ADMIN_USERNAME = 'admin'
     DEFAULT_ADMIN_PASSWORD = 'admin'
+
+    # Logging configuration
+    LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 

@@ -9,8 +9,12 @@ from flask_login import login_required, logout_user, current_user
 from sqlalchemy import or_, desc, text
 from sqlalchemy.orm import joinedload
 from functools import wraps
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_caching import Cache
 
 from config import Config
+from flask_wtf.csrf import CSRFProtect
 from models import db, User, Admin, Game, Tournament, TournamentParticipant, TournamentMatch
 from auth import login_manager, login_user_by_netid, login_admin, create_user, get_current_user, get_current_admin, validate_admin_password
 from elo import update_ratings_after_game, update_ratings_after_doubles_game
@@ -34,7 +38,14 @@ login_manager.login_view = 'login'
 # Initialize Flask-Compress for response compression
 compress = Compress(app)
 
-logging.basicConfig(level=logging.INFO)
+# Enable CSRF protection
+csrf = CSRFProtect(app)
+
+# Rate limiting and caching
+limiter = Limiter(get_remote_address, app=app, default_limits=["100 per 15 minutes"])
+cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 120})
+
+logging.basicConfig(level=getattr(logging, Config.LOG_LEVEL, logging.INFO))
 
 # ============================================================================
 # ERROR HANDLING DECORATOR
@@ -67,16 +78,24 @@ with app.app_context():
 
 csp = {
     "default-src": ["'self'"],
+    # Allow inline scripts for existing templates. Consider migrating to nonces later.
     "script-src": ["'self'", "'unsafe-inline'"],
+    # Keep inline styles allowed due to templates/CSS classes; can tighten later
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'"],
 }
 Talisman(
     app,
     content_security_policy=csp,
-    force_https=False,
+    force_https=Config.FORCE_HTTPS,
     strict_transport_security=True,
     strict_transport_security_max_age=31536000,
+    referrer_policy='no-referrer',
+    permissions_policy={
+        'geolocation': '()',
+        'camera': '()',
+        'microphone': '()'
+    },
 )
 
 # ============================================================================
@@ -85,11 +104,11 @@ Talisman(
 
 @app.before_request
 def log_request():
-    print(f"[DEBUG] Request: {request.method} {request.path}")
+    logging.debug(f"Request: {request.method} {request.path}")
 
 @app.after_request
 def add_cache_headers(response):
-    """Add caching headers for static files"""
+    """Add caching headers appropriate to route type and auth state"""
     if request.path.startswith('/static/'):
         # Cache static files for 1 year (with cache busting via version param)
         response.cache_control.max_age = 31536000
@@ -98,9 +117,15 @@ def add_cache_headers(response):
         # Don't cache health checks
         response.cache_control.no_cache = True
     else:
-        # Cache HTML pages for 5 minutes
-        response.cache_control.max_age = 300
-    
+        # Do not cache personalized content for authenticated users
+        try:
+            if current_user.is_authenticated:
+                response.cache_control.no_store = True
+            else:
+                # Cache public HTML pages briefly
+                response.cache_control.max_age = 300
+        except Exception:
+            response.cache_control.max_age = 300
     return response
 
 # ============================================================================
@@ -197,7 +222,9 @@ def index():
     # Get recent games with eager loading - limit to 10 directly
     recent_games = Game.query.options(
         joinedload(Game.player1),
-        joinedload(Game.player2)
+        joinedload(Game.player2),
+        joinedload(Game.player3),
+        joinedload(Game.player4)
     ).filter(
         or_(
             Game.player1_netid == user.netid,
@@ -298,6 +325,10 @@ def report_game():
                 )
                 db.session.add(game)
                 db.session.commit()
+                try:
+                    cache.delete_memoized(leaderboard)
+                except Exception:
+                    pass
                 
                 flash(f"Game recorded! {winner.full_name} won (+{elo_change} ELO)", "success")
                 return redirect(url_for('index'))
@@ -377,6 +408,10 @@ def report_game():
                 )
                 db.session.add(game)
                 db.session.commit()
+                try:
+                    cache.delete_memoized(leaderboard)
+                except Exception:
+                    pass
                 
                 if winning_team == "team1":
                     flash(f"Doubles game recorded! Your team won (+{elo_change} ELO each)", "success")
@@ -406,13 +441,16 @@ def game_history():
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 50, type=int)
-        per_page = min(per_page, 100)  # Cap at 100 per page
+        per_page = max(1, min(per_page, 100))  # Clamp per_page 1..100
+        page = max(1, page)  # Clamp page >= 1
         
         if current_user.is_admin:
             # Show all games for admin with eager loading
             games = Game.query.options(
                 joinedload(Game.player1),
-                joinedload(Game.player2)
+                joinedload(Game.player2),
+                joinedload(Game.player3),
+                joinedload(Game.player4)
             ).order_by(desc(Game.timestamp)).limit(per_page).offset((page - 1) * per_page).all()
             
             total_games = Game.query.count()
@@ -425,7 +463,9 @@ def game_history():
             # Get user's games with eager loading and pagination
             games = Game.query.options(
                 joinedload(Game.player1),
-                joinedload(Game.player2)
+                joinedload(Game.player2),
+                joinedload(Game.player3),
+                joinedload(Game.player4)
             ).filter(
                 or_(
                     Game.player1_netid == user.netid,
@@ -549,6 +589,7 @@ def delete_game(game_id):
 
 @app.route("/leaderboard")
 @login_required
+@cache.cached(timeout=60)
 def leaderboard():
     """Full ELO leaderboard"""
     if current_user.is_admin:
@@ -561,6 +602,7 @@ def leaderboard():
 
 @app.route("/users/search")
 @login_required
+@limiter.limit("10/minute")
 def search_users():
     """Search users by NetID or name (AJAX endpoint)"""
     query = request.args.get("q", "").strip().lower()
@@ -594,6 +636,7 @@ def search_users():
 
 @app.route("/tournaments")
 @login_required
+@cache.cached(timeout=60)
 def tournaments():
     """List all tournaments"""
     open_tournaments = Tournament.query.filter_by(status='open').order_by(desc(Tournament.created_at)).all()
@@ -742,6 +785,11 @@ def report_tournament_match(tournament_id, match_id):
     )
     db.session.add(game)
     db.session.commit()
+    try:
+        cache.delete_memoized(leaderboard)
+        cache.delete_memoized(tournaments)
+    except Exception:
+        pass
     
     # Report match result and advance bracket
     success, message = report_match_result(match, winner_netid, game.id)
@@ -758,6 +806,7 @@ def report_tournament_match(tournament_id, match_id):
 # ============================================================================
 
 @app.route("/admin/login", methods=["GET", "POST"])
+@limiter.limit("5/minute")
 def admin_login():
     """Admin login page"""
     try:
@@ -815,7 +864,9 @@ def admin_dashboard():
     # Recent games with eager loading
     recent_games = Game.query.options(
         joinedload(Game.player1),
-        joinedload(Game.player2)
+        joinedload(Game.player2),
+        joinedload(Game.player3),
+        joinedload(Game.player4)
     ).order_by(desc(Game.timestamp)).limit(10).all()
     
     return render_template(
@@ -1114,6 +1165,10 @@ def admin_create_tournament():
         )
         db.session.add(tournament)
         db.session.commit()
+        try:
+            cache.delete_memoized(tournaments)
+        except Exception:
+            pass
         
         flash(f"Tournament '{name}' created successfully!", "success")
         return redirect(url_for('tournament_detail', tournament_id=tournament.id))
@@ -1135,7 +1190,10 @@ def admin_activate_tournament(tournament_id):
         flash(message, "success")
     else:
         flash(message, "error")
-    
+    try:
+        cache.delete_memoized(tournaments)
+    except Exception:
+        pass
     return redirect(url_for('tournament_detail', tournament_id=tournament_id))
 
 # ============================================================================

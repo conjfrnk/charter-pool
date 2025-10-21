@@ -3,6 +3,9 @@ flask-talisman
 flask-sqlalchemy
 flask-login
 flask-compress
+flask-wtf
+flask-limiter
+flask-caching
 psycopg2
 gunicorn
 werkzeug

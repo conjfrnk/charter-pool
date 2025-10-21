@@ -7,6 +7,7 @@
   <div class="admin-section">
     <h3>Add New Admin</h3>
     <form method="POST" action="{{ url_for('admin_add_admin') }}" class="admin-form inline-form">
+      {{ csrf_token() }}
       <div class="form-group">
         <input type="text" name="username" placeholder="Username" required>
       </div>
@@ -48,6 +49,7 @@
             </button>
             {% if admin.username != 'admin' and admin.id != current_admin.id %}
             <form method="POST" action="{{ url_for('admin_delete_admin', admin_id=admin.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete admin {{ admin.username }}?');">
+              {{ csrf_token() }}
               <button type="submit" class="btn btn-sm btn-danger">Delete</button>
             </form>
             {% endif %}
@@ -63,6 +65,7 @@
   <div class="modal-content">
     <h3>Change Password for <span id="modalUsername"></span></h3>
     <form id="passwordForm" method="POST" action="">
+      {{ csrf_token() }}
       <div class="form-group">
         <label for="new_password">New Password</label>
         <input type="password" id="new_password" name="new_password" required>

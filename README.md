@@ -896,3 +896,23 @@ Created by Connor Frank, Charter House Manager at Princeton University
 ## License
 
 MIT License - see repository for details
+
+## Ops & Security Notes
+
+- Config
+  - `LOG_LEVEL` (default: `INFO`): set to `DEBUG` locally for verbose logs.
+  - `FORCE_HTTPS` (default: `false`): set to `true` in production to enable HTTPS-only cookies and HSTS via Talisman.
+- CSRF
+  - Enabled globally via Flask-WTF. All POST forms include `{{ csrf_token() }}`.
+- Rate limiting
+  - Global default: 100 per 15 minutes per IP.
+  - Sensitive endpoints: `/admin/login` (5/min), `/users/search` (10/min).
+- Caching
+  - `leaderboard` and `tournaments` cached for ~60s using SimpleCache.
+  - Cache invalidated on game/tournament writes.
+- Headers
+  - CSP is applied via Talisman. Script inline allowed temporarily; prefer moving inline JS to `static/main.js` and dropping `'unsafe-inline'`.
+  - Referrer-Policy: `no-referrer`; Permissions-Policy locked down for geolocation/camera/microphone.
+- Verifications
+  - Check headers: `curl -I https://<host>/ | grep -E "content-security-policy|strict-transport-security|referrer-policy|permissions-policy" -i`
+  - Check cache headers on `/static/*` (1y) and authenticated pages (no-store).

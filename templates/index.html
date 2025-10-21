@@ -89,8 +89,8 @@
           <div class="game-players">
             {% if game.is_doubles() %}
               <!-- Doubles Game -->
-              {% set player3 = User.query.get(game.player3_netid) %}
-              {% set player4 = User.query.get(game.player4_netid) %}
+              {% set player3 = game.player3 %}
+              {% set player4 = game.player4 %}
               <div class="doubles-teams">
                 <span class="team-label {% if game.winner_netid in game.get_team1_netids() %}winner{% endif %}">
                   {{ game.player1.full_name if game.player1 else 'Unknown' }} & {{ game.player2.full_name if game.player2 else 'Unknown' }}
@@ -116,6 +116,7 @@
             <span class="game-time">{{ game.timestamp.strftime('%m/%d %I:%M%p') }}</span>
             {% if can_delete %}
               <form method="POST" action="{{ url_for('delete_game', game_id=game.id) }}" class="delete-form-inline" onsubmit="return confirmDelete()">
+                {{ csrf_token() }}
                 <button type="submit" class="btn-delete-small" title="Delete this game">
                   🗑️
                 </button>

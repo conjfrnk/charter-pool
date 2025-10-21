@@ -44,8 +44,8 @@ def load_user(user_id):
             if user and not user.archived and user.is_active:
                 return UserSession(user.netid)
     except Exception as e:
-        print(f"[ERROR] Failed to load user from session (user_id={user_id}): {e}")
-        import traceback
+        import logging, traceback
+        logging.error(f"Failed to load user from session (user_id={user_id}): {e}")
         traceback.print_exc()
     return None
 
@@ -58,7 +58,8 @@ def get_current_user():
             if user and not user.archived:
                 return user
     except Exception as e:
-        print(f"[ERROR] Failed to get current user: {e}")
+        import logging
+        logging.error(f"Failed to get current user: {e}")
     return None
 
 def get_current_admin():
@@ -68,7 +69,8 @@ def get_current_admin():
         if current_user.is_authenticated and current_user.is_admin:
             return Admin.query.get(current_user.admin_id)
     except Exception as e:
-        print(f"[ERROR] Failed to get current admin: {e}")
+        import logging
+        logging.error(f"Failed to get current admin: {e}")
     return None
 
 def login_user_by_netid(netid):
@@ -113,18 +115,19 @@ def login_admin(username, password):
     Login an admin by username and password
     Returns (success, admin_or_error_message)
     """
-    print(f"[DEBUG] login_admin called with username: {username}")
+    import logging
+    logging.debug(f"login_admin called with username: {username}")
     admin = Admin.query.filter_by(username=username).first()
-    print(f"[DEBUG] Admin found: {admin is not None}")
+    logging.debug(f"Admin found: {admin is not None}")
     
     if admin:
-        print(f"[DEBUG] Admin username: {admin.username}, ID: {admin.id}")
-        print(f"[DEBUG] Checking password...")
+        logging.debug(f"Admin username: {admin.username}, ID: {admin.id}")
+        logging.debug(f"Checking password...")
         try:
             password_valid = admin.check_password(password)
-            print(f"[DEBUG] Password valid: {password_valid}")
+            logging.debug(f"Password valid: {password_valid}")
         except Exception as e:
-            print(f"[DEBUG] Password check error: {e}")
+            logging.debug(f"Password check error: {e}")
             import traceback
             traceback.print_exc()
             return False, f"Password check error: {e}"
@@ -143,32 +146,33 @@ def create_user(netid, first_name=None, last_name=None):
     Can be called by admin (netid only) or by user completing profile (with names)
     Returns (success, user_or_error_message)
     """
-    print(f"[DEBUG] create_user called with netid='{netid}', first_name='{first_name}', last_name='{last_name}'")
+    import logging
+    logging.debug(f"create_user called with netid='{netid}', first_name='{first_name}', last_name='{last_name}'")
     
     netid = netid.strip().lower()
-    print(f"[DEBUG] Cleaned netid: '{netid}'")
+    logging.debug(f"Cleaned netid: '{netid}'")
     
     if not netid:
-        print(f"[DEBUG] NetID is empty after cleaning")
+        logging.debug(f"NetID is empty after cleaning")
         return False, "NetID is required"
     
     # Check if user already exists
-    print(f"[DEBUG] Checking if user '{netid}' already exists...")
+    logging.debug(f"Checking if user '{netid}' already exists...")
     try:
         existing_user = User.query.get(netid)
-        print(f"[DEBUG] Query result: existing_user={existing_user}")
+        logging.debug(f"Query result: existing_user={existing_user}")
     except Exception as e:
-        print(f"[DEBUG] Error checking existing user: {e}")
+        logging.debug(f"Error checking existing user: {e}")
         import traceback
         traceback.print_exc()
         return False, f"Database error checking user: {str(e)}"
     
     if existing_user:
-        print(f"[DEBUG] User '{netid}' already exists")
+        logging.debug(f"User '{netid}' already exists")
         return False, "A user with this NetID already exists"
     
     # Create new user (names can be None if added by admin)
-    print(f"[DEBUG] Creating new user object for '{netid}'")
+    logging.debug(f"Creating new user object for '{netid}'")
     try:
         user = User(netid=netid)
         if first_name:
@@ -182,22 +186,22 @@ def create_user(netid, first_name=None, last_name=None):
         else:
             user.is_active = False
         
-        print(f"[DEBUG] User object created: netid={user.netid}, is_active={user.is_active}")
-        print(f"[DEBUG] Adding user to database session...")
+        logging.debug(f"User object created: netid={user.netid}, is_active={user.is_active}")
+        logging.debug(f"Adding user to database session...")
         db.session.add(user)
         
-        print(f"[DEBUG] Committing database session...")
+        logging.debug(f"Committing database session...")
         db.session.commit()
         
-        print(f"[DEBUG] User '{netid}' successfully created in database")
+        logging.debug(f"User '{netid}' successfully created in database")
         return True, user
     except Exception as e:
-        print(f"[DEBUG] Error creating user '{netid}': {e}")
+        logging.debug(f"Error creating user '{netid}': {e}")
         import traceback
         traceback.print_exc()
         try:
             db.session.rollback()
-            print(f"[DEBUG] Database session rolled back")
+            logging.debug(f"Database session rolled back")
         except Exception as rollback_error:
             print(f"[DEBUG] Error rolling back: {rollback_error}")
         return False, f"Database error creating user: {str(e)}"

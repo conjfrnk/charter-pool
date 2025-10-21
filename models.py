@@ -18,6 +18,9 @@ class User(db.Model):
     # Relationships
     games_as_player1 = db.relationship('Game', foreign_keys='Game.player1_netid', backref='player1', lazy='dynamic')
     games_as_player2 = db.relationship('Game', foreign_keys='Game.player2_netid', backref='player2', lazy='dynamic')
+    # Backrefs for doubles participants to enable eager loading and template access
+    games_as_player3 = db.relationship('Game', foreign_keys='Game.player3_netid', backref='player3', lazy='dynamic')
+    games_as_player4 = db.relationship('Game', foreign_keys='Game.player4_netid', backref='player4', lazy='dynamic')
     tournament_participations = db.relationship('TournamentParticipant', backref='user', lazy='dynamic')
     
     def __repr__(self):
@@ -54,7 +57,8 @@ class User(db.Model):
             
             return query.all()
         except Exception as e:
-            print(f"[ERROR] Failed to get games for user {self.netid}: {e}")
+        import logging
+        logging.error(f"Failed to get games for user {self.netid}: {e}")
             return []
     
     def get_game_stats(self):
@@ -87,7 +91,8 @@ class User(db.Model):
                             wins += 1
                 except Exception as e:
                     # Log error but continue counting
-                    print(f"[WARNING] Error processing game {game.id if game else 'unknown'} stats: {e}")
+                    import logging
+                    logging.warning(f"Error processing game {game.id if game else 'unknown'} stats: {e}")
                     continue
             
             losses = total - wins
@@ -100,7 +105,8 @@ class User(db.Model):
                 'win_rate': win_rate
             }
         except Exception as e:
-            print(f"[ERROR] Failed to calculate game stats for user {self.netid}: {e}")
+            import logging
+            logging.error(f"Failed to calculate game stats for user {self.netid}: {e}")
             return {'wins': 0, 'losses': 0, 'total': 0, 'win_rate': 0}
     
     def get_win_count(self):
@@ -194,7 +200,8 @@ class Game(db.Model):
             else:
                 return [self.winner_netid]
         except Exception as e:
-            print(f"[ERROR] Failed to get winning team for game {self.id}: {e}")
+            import logging
+            logging.error(f"Failed to get winning team for game {self.id}: {e}")
             return []
     
     def get_losing_team_netids(self):

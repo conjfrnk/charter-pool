@@ -141,6 +141,35 @@ document.addEventListener('DOMContentLoaded', () => {
     
     input.addEventListener('input', debouncedHandler);
   });
+
+  // Confirm before submitting report game form
+  const reportForm = document.querySelector('.game-report-form');
+  if (reportForm) {
+    reportForm.addEventListener('submit', (e) => {
+      const gameType = (new FormData(reportForm)).get('game_type') || 'singles';
+      if (gameType === 'singles') {
+        const opponent = (new FormData(reportForm)).get('opponent_netid');
+        const winner = (new FormData(reportForm)).get('winner_netid');
+        if (!opponent || !winner) return; // native required will handle
+        const msg = `Submit singles result?\nOpponent: ${opponent}\nWinner: ${winner}`;
+        if (!confirm(msg)) {
+          e.preventDefault();
+          return false;
+        }
+      } else {
+        const partner = (new FormData(reportForm)).get('partner_netid');
+        const opp1 = (new FormData(reportForm)).get('opponent1_netid');
+        const opp2 = (new FormData(reportForm)).get('opponent2_netid');
+        const winningTeam = (new FormData(reportForm)).get('winning_team');
+        if (!partner || !opp1 || !opp2 || !winningTeam) return;
+        const msg = `Submit doubles result?\nPartner: ${partner}\nOpponents: ${opp1}, ${opp2}\nWinning team: ${winningTeam}`;
+        if (!confirm(msg)) {
+          e.preventDefault();
+          return false;
+        }
+      }
+    });
+  }
   
   // Lazy loading for heavy content (if needed in future)
   if ('IntersectionObserver' in window) {
