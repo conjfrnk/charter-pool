@@ -19,7 +19,7 @@
       <div class="signup-box">
         <h3>Sign Up</h3>
         <form method="POST" action="{{ url_for('tournament_signup', tournament_id=tournament.id) }}">
-          {{ csrf_token() }}
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="form-group">
             <label for="self_rating">Rate your pool skill (1-10):</label>
             <div class="rating-input">
@@ -40,7 +40,7 @@
   
   {% if current_admin and tournament.status == 'open' %}
     <form method="POST" action="{{ url_for('admin_activate_tournament', tournament_id=tournament.id) }}" class="admin-action-form">
-      {{ csrf_token() }}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-primary">Activate Tournament</button>
     </form>
   {% endif %}
@@ -113,7 +113,7 @@
             {% if not match.completed and match.is_ready() and tournament.can_report_results() and not current_admin %}
               {% if current_user and (current_user.netid == match.player1_netid or current_user.netid == match.player2_netid) %}
               <form method="POST" action="{{ url_for('report_tournament_match', tournament_id=tournament.id, match_id=match.id) }}" class="match-report-form">
-                {{ csrf_token() }}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <select name="winner_netid" required>
                   <option value="">Select Winner</option>
                   {% set p1 = participants|selectattr('user_netid', 'equalto', match.player1_netid)|first %}

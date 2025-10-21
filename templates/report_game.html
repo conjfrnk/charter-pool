@@ -5,7 +5,7 @@
   <h2>Report Game Result</h2>
   
   <form method="POST" action="{{ url_for('report_game') }}" class="game-report-form">
-    {{ csrf_token() }}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- Game Type Selection -->
     <div class="form-group">
       <label>Game Type</label>

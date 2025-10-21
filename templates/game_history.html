@@ -90,7 +90,7 @@
         <td>
           {% if can_delete %}
             <form method="POST" action="{{ url_for('delete_game', game_id=game.id) }}" class="delete-form" onsubmit="return confirmDelete()">
-              {{ csrf_token() }}
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn-delete" title="Delete this game (within 15 min)">
                 🗑️ Delete
               </button>

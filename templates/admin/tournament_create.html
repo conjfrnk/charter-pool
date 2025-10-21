@@ -5,7 +5,7 @@
   <h2>Create New Tournament</h2>
   
   <form method="POST" action="{{ url_for('admin_create_tournament') }}" class="admin-form">
-    {{ csrf_token() }}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-group">
       <label for="name">Tournament Name</label>
       <input type="text" id="name" name="name" required placeholder="e.g., Spring 2024 Championship">
