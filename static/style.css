@@ -568,11 +568,6 @@ table tr.highlight {
 .leaderboard-table .elo-cell {
   font-weight: 600;
   color: #C5A144;
-  text-align: right;
-}
-
-.leaderboard-table th:last-child {
-  text-align: right;
 }
 
 .winner-cell {
