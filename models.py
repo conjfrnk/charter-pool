@@ -57,8 +57,8 @@ class User(db.Model):
             
             return query.all()
         except Exception as e:
-        import logging
-        logging.error(f"Failed to get games for user {self.netid}: {e}")
+            import logging
+            logging.error(f"Failed to get games for user {self.netid}: {e}")
             return []
     
     def get_game_stats(self):
