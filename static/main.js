@@ -43,6 +43,30 @@ function wrapTablesForMobile() {
 document.addEventListener('DOMContentLoaded', () => {
   console.log("Charter Pool initialized!");
   
+  // Auto-hiding header on scroll
+  let lastScrollTop = 0;
+  let scrollTimeout;
+  const header = document.querySelector('header');
+  
+  if (header && window.innerWidth <= 768) {
+    window.addEventListener('scroll', () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        
+        if (scrollTop > lastScrollTop && scrollTop > 100) {
+          // Scrolling down
+          header.classList.add('header-hidden');
+        } else {
+          // Scrolling up
+          header.classList.remove('header-hidden');
+        }
+        
+        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+      }, 100);
+    }, { passive: true });
+  }
+  
   // Mobile menu toggle
   const menuToggle = document.querySelector('.mobile-menu-toggle');
   const nav = document.querySelector('.nav');
@@ -69,25 +93,98 @@ document.addEventListener('DOMContentLoaded', () => {
         nav.classList.remove('mobile-menu-open');
       }
     });
+    
+    // Close menu on escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && menuToggle.getAttribute('aria-expanded') === 'true') {
+        menuToggle.setAttribute('aria-expanded', 'false');
+        nav.classList.remove('mobile-menu-open');
+        menuToggle.focus();
+      }
+    });
   }
   
-  // Auto-hide flash messages after 5 seconds
+  // Enhanced flash message handling
   const alerts = document.querySelectorAll('.alert');
   alerts.forEach(alert => {
-    setTimeout(() => {
-      alert.style.transition = 'opacity 0.5s';
-      alert.style.opacity = '0';
-      setTimeout(() => alert.remove(), 500);
+    // Add dismiss button
+    const dismissBtn = document.createElement('button');
+    dismissBtn.className = 'alert-dismiss';
+    dismissBtn.innerHTML = '×';
+    dismissBtn.setAttribute('aria-label', 'Dismiss alert');
+    dismissBtn.addEventListener('click', () => dismissAlert(alert));
+    alert.appendChild(dismissBtn);
+    
+    // Auto-dismiss after 5 seconds
+    const autoDismissTimeout = setTimeout(() => {
+      dismissAlert(alert);
     }, 5000);
+    
+    // Swipe to dismiss on mobile
+    if ('ontouchstart' in window) {
+      let startX = 0;
+      let currentX = 0;
+      
+      alert.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        alert.style.transition = 'none';
+      }, { passive: true });
+      
+      alert.addEventListener('touchmove', (e) => {
+        currentX = e.touches[0].clientX;
+        const deltaX = currentX - startX;
+        if (deltaX > 0) {
+          alert.style.transform = `translateX(${deltaX}px)`;
+          alert.style.opacity = 1 - (deltaX / 200);
+        }
+      }, { passive: true });
+      
+      alert.addEventListener('touchend', () => {
+        const deltaX = currentX - startX;
+        if (deltaX > 100) {
+          clearTimeout(autoDismissTimeout);
+          dismissAlert(alert);
+        } else {
+          alert.style.transition = 'transform 0.3s, opacity 0.3s';
+          alert.style.transform = 'translateX(0)';
+          alert.style.opacity = '1';
+        }
+      }, { passive: true });
+    }
   });
+  
+  function dismissAlert(alert) {
+    alert.classList.add('dismissing');
+    setTimeout(() => alert.remove(), 300);
+  }
   
   // Wrap tables for mobile scrolling
   wrapTablesForMobile();
   
-  // Event delegation for form submissions
+  // Smooth scroll to focused inputs on mobile
+  if (window.innerWidth <= 768) {
+    const inputs = document.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+      input.addEventListener('focus', () => {
+        setTimeout(() => {
+          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      });
+    });
+  }
+  
+  // Enhanced form submission handling
   document.addEventListener('submit', (e) => {
     if (e.target.tagName === 'FORM' && !e.target.classList.contains('no-loading')) {
-      handleFormSubmit(e.target);
+      const form = e.target;
+      handleFormSubmit(form);
+      
+      // Add loading class to submit button
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+      }
     }
   });
   
@@ -171,19 +268,71 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Lazy loading for heavy content (if needed in future)
-  if ('IntersectionObserver' in window) {
-    const lazyElements = document.querySelectorAll('[data-lazy]');
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const element = entry.target;
-          // Trigger lazy loading here
-          observer.unobserve(element);
-        }
+  // Enable card view for tables on mobile
+  if (window.innerWidth <= 600) {
+    const leaderboardTables = document.querySelectorAll('.leaderboard-table');
+    leaderboardTables.forEach(table => {
+      table.classList.add('card-view');
+      
+      // Add data-label attributes for mobile card view
+      const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+      const rows = table.querySelectorAll('tbody tr');
+      
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        cells.forEach((cell, index) => {
+          if (headers[index]) {
+            cell.setAttribute('data-label', headers[index]);
+          }
+        });
       });
     });
+  }
+  
+  // Scroll animations with Intersection Observer
+  if ('IntersectionObserver' in window) {
+    const animatedElements = document.querySelectorAll('.card, .game-item, .tournament-card');
     
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry, index) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => {
+            entry.target.style.opacity = '1';
+            entry.target.style.transform = 'translateY(0)';
+          }, index * 50);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, observerOptions);
+    
+    animatedElements.forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+      observer.observe(el);
+    });
+    
+    // Lazy loading for heavy content
+    const lazyElements = document.querySelectorAll('[data-lazy]');
     lazyElements.forEach(el => observer.observe(el));
   }
+  
+  // Performance: Add will-change to elements during scroll
+  let scrolling = false;
+  window.addEventListener('scroll', () => {
+    if (!scrolling) {
+      scrolling = true;
+      document.body.style.willChange = 'scroll-position';
+      
+      setTimeout(() => {
+        scrolling = false;
+        document.body.style.willChange = 'auto';
+      }, 300);
+    }
+  }, { passive: true });
 });
