@@ -4,11 +4,7 @@
 <div class="page-container">
   <h2>Report Game Result</h2>
   
-  <!-- Include mobile wizard for small screens -->
-  {% include 'report_game_mobile.html' %}
-  
-  <!-- Desktop form for larger screens -->
-  <form method="POST" action="{{ url_for('report_game') }}" class="game-report-form desktop-only">
+  <form method="POST" action="{{ url_for('report_game') }}" class="game-report-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- Game Type Selection -->
     <div class="form-group">
