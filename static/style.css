@@ -45,22 +45,9 @@ html, body, .wrapper {
   --transition-slow: 350ms ease;
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-primary: #1a1a1a;
-    --bg-card: #2d2d2d;
-    --bg-hover: #3a3a3a;
-    --text-primary: #e0e0e0;
-    --text-secondary: #b0b0b0;
-    --text-tertiary: #808080;
-    --border-color: #404040;
-  }
-  
-  body {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-  }
+/* Force light mode only */
+:root {
+  color-scheme: light;
 }
 
 /* Reduced motion support */
