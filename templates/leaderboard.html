@@ -9,7 +9,6 @@
       <tr>
         <th>Rank</th>
         <th>Player</th>
-        <th>NetID</th>
         <th>ELO Rating</th>
         <th>Wins</th>
         <th>Losses</th>
@@ -33,7 +32,6 @@
             {% endif %}
           {% endif %}
         </td>
-        <td>{{ user.netid }}</td>
         <td class="elo-cell">{{ user.elo_rating }}</td>
         <td>{{ user.get_win_count() }}</td>
         <td>{{ user.get_loss_count() }}</td>
