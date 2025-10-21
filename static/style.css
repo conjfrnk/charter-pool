@@ -1149,8 +1149,14 @@ table tr.highlight {
   min-height: 48px;
   display: flex;
   align-items: center;
+  gap: 12px;
   transition: background-color var(--transition-fast);
   -webkit-tap-highlight-color: transparent;
+}
+
+.search-result-item .player-name {
+  font-weight: 600;
+  flex: 1;
 }
 
 .search-result-item:last-child {
