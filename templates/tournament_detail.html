@@ -51,7 +51,6 @@
         <tr>
           {% if tournament.status != 'open' %}<th>Seed</th>{% endif %}
           <th>Player</th>
-          <th>NetID</th>
           <th>Self Rating</th>
           <th>Current ELO</th>
           {% if tournament.status == 'completed' %}<th>Placement</th>{% endif %}
@@ -62,7 +61,6 @@
         <tr>
           {% if tournament.status != 'open' %}<td>{{ p.seed or '-' }}</td>{% endif %}
           <td>{{ p.user.full_name }}</td>
-          <td>{{ p.user_netid }}</td>
           <td>{{ p.self_rating }}/10</td>
           <td>{{ p.user.elo_rating }}</td>
           {% if tournament.status == 'completed' %}<td>{{ p.placement or '-' }}</td>{% endif %}
@@ -93,7 +91,7 @@
             <div class="match-player {% if match.winner_netid == match.player1_netid %}winner{% endif %}">
               {% if match.player1_netid %}
                 {% set p1 = participants|selectattr('user_netid', 'equalto', match.player1_netid)|first %}
-                {{ p1.user.full_name if p1 else match.player1_netid }} ({{ match.player1_netid }})
+                {{ p1.user.full_name if p1 else match.player1_netid }}
               {% else %}
                 TBD
               {% endif %}
@@ -102,7 +100,7 @@
             <div class="match-player {% if match.winner_netid == match.player2_netid %}winner{% endif %}">
               {% if match.player2_netid %}
                 {% set p2 = participants|selectattr('user_netid', 'equalto', match.player2_netid)|first %}
-                {{ p2.user.full_name if p2 else match.player2_netid }} ({{ match.player2_netid }})
+                {{ p2.user.full_name if p2 else match.player2_netid }}
               {% else %}
                 TBD
               {% endif %}
@@ -113,14 +111,17 @@
               <form method="POST" action="{{ url_for('report_tournament_match', tournament_id=tournament.id, match_id=match.id) }}" class="match-report-form">
                 <select name="winner_netid" required>
                   <option value="">Select Winner</option>
-                  <option value="{{ match.player1_netid }}">{{ match.player1_netid }}</option>
-                  <option value="{{ match.player2_netid }}">{{ match.player2_netid }}</option>
+                  {% set p1 = participants|selectattr('user_netid', 'equalto', match.player1_netid)|first %}
+                  {% set p2 = participants|selectattr('user_netid', 'equalto', match.player2_netid)|first %}
+                  <option value="{{ match.player1_netid }}">{{ p1.user.full_name if p1 else match.player1_netid }}</option>
+                  <option value="{{ match.player2_netid }}">{{ p2.user.full_name if p2 else match.player2_netid }}</option>
                 </select>
                 <button type="submit" class="btn btn-sm btn-primary">Report Result</button>
               </form>
               {% endif %}
             {% elif match.completed %}
-              <div class="match-result">Winner: {{ match.winner_netid }}</div>
+              {% set winner = participants|selectattr('user_netid', 'equalto', match.winner_netid)|first %}
+              <div class="match-result">Winner: {{ winner.user.full_name if winner else match.winner_netid }}</div>
             {% endif %}
           </div>
           {% endfor %}
