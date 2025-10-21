@@ -2003,27 +2003,10 @@ table tr.highlight {
 
 /* Expandable rows for mobile */
 @media (max-width: 768px) {
-  .leaderboard-table tbody tr {
+  .leaderboard-table tbody tr:not(.player-details-row) {
     cursor: pointer;
     transition: all var(--transition-fast);
     position: relative;
-  }
-  
-  .leaderboard-table tbody tr::after {
-    content: '›';
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 24px;
-    font-weight: bold;
-    color: var(--text-tertiary);
-    transition: transform var(--transition-fast);
-    pointer-events: none;
-  }
-  
-  .leaderboard-table tbody tr.expanded::after {
-    transform: translateY(-50%) rotate(90deg);
   }
 }
 
@@ -2042,10 +2025,20 @@ table tr.highlight {
   background: var(--bg-hover);
   border-top: 2px solid var(--border-color);
   animation: slideDown 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .player-details.show {
   display: grid;
+}
+
+.player-details-row {
+  background: transparent !important;
+}
+
+.player-details-row td {
+  padding: 0 !important;
 }
 
 @keyframes slideDown {
@@ -2088,12 +2081,6 @@ table tr.highlight {
 }
 
 @media (max-width: 768px) {
-  /* Add visual hint that rows are tappable */
-  .leaderboard-table tbody tr {
-    position: relative;
-    padding-right: 36px;
-  }
-  
   /* Hide Wins, Losses, Win Rate columns on mobile - only show on expand */
   .leaderboard-table thead th:nth-child(4),
   .leaderboard-table thead th:nth-child(5),
@@ -2107,6 +2094,12 @@ table tr.highlight {
   /* Make table full width on mobile */
   .leaderboard-table {
     min-width: 100%;
+    width: 100%;
+  }
+  
+  /* Remove any extra margins */
+  .table-container {
+    overflow-x: visible;
   }
 }
 
@@ -2118,15 +2111,15 @@ table tr.highlight {
   
   .leaderboard-table th,
   .leaderboard-table td {
-    padding: 10px 8px;
+    padding: 12px 10px;
   }
   
-  .leaderboard-table tbody tr {
+  .leaderboard-table tbody tr:not(.player-details-row) {
     border-left: 4px solid transparent;
     min-height: 56px;
   }
   
-  .leaderboard-table tbody tr:active {
+  .leaderboard-table tbody tr:not(.player-details-row):active {
     background: var(--bg-hover);
     border-left-color: var(--color-primary);
   }
@@ -2139,10 +2132,12 @@ table tr.highlight {
   /* Make rank and name more prominent on mobile */
   .leaderboard-table .rank-cell {
     font-size: 16px;
+    font-weight: 700;
   }
   
   .leaderboard-table .elo-cell {
     font-size: 15px;
+    font-weight: 600;
   }
   
   /* Adjust detail panels on smaller screens */
@@ -2164,7 +2159,14 @@ table tr.highlight {
     margin-left: 0;
     margin-right: 0;
     width: 100%;
+    border-radius: 8px;
+    overflow: visible;
   }
+  
+  .page-container {
+    padding: 12px;
+  }
+}
   
   /* Pagination improvements on mobile */
   .pagination {

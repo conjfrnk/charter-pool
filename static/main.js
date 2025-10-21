@@ -341,8 +341,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const detailsRow = document.createElement('tr');
     detailsRow.className = 'player-details-row';
+    // Use colspan of 3 since we're only showing 3 columns on mobile (Rank, Player, ELO)
     detailsRow.innerHTML = `
-      <td colspan="${colSpan}" style="padding: 0; border: none;">
+      <td colspan="3" style="padding: 0 !important; border: none !important;">
         <div class="player-details">
           <div class="detail-item">
             <span class="detail-label">Rank</span>
