@@ -259,15 +259,23 @@ def index():
         )
     ).order_by(desc(Game.timestamp)).limit(10).all()
     
-    # Get leaderboard (top 10) - only active users (cached)
+    # Get leaderboard (top 10) - only active users who have played at least one game (cached)
     cache_key = 'leaderboard:top10'
     leaderboard = cache.get(cache_key)
     if leaderboard is None:
         leaderboard = User.query.filter_by(archived=False, is_active=True)\
+            .filter(
+                or_(
+                    User.games_as_player1.any(),
+                    User.games_as_player2.any(),
+                    User.games_as_player3.any(),
+                    User.games_as_player4.any()
+                )
+            )\
             .order_by(desc(User.elo_rating)).limit(10).all()
         cache.set(cache_key, leaderboard, timeout=60)
     
-    # Get user's rank (among active users only) - cached per user
+    # Get user's rank (among active users who have played at least one game) - cached per user
     rank_cache_key = f'user_rank:{user.netid}'
     user_rank = cache.get(rank_cache_key)
     if user_rank is None:
@@ -275,6 +283,13 @@ def index():
             User.elo_rating > user.elo_rating,
             User.archived == False,
             User.is_active == True
+        ).filter(
+            or_(
+                User.games_as_player1.any(),
+                User.games_as_player2.any(),
+                User.games_as_player3.any(),
+                User.games_as_player4.any()
+            )
         ).count() + 1
         cache.set(rank_cache_key, user_rank, timeout=300)
     
@@ -485,45 +500,15 @@ def game_history():
         per_page = max(1, min(per_page, 100))  # Clamp per_page 1..100
         page = max(1, page)  # Clamp page >= 1
         
-        if current_user.is_admin:
-            # Show all games for admin with eager loading
-            games = Game.query.options(
-                joinedload(Game.player1),
-                joinedload(Game.player2),
-                joinedload(Game.player3),
-                joinedload(Game.player4)
-            ).order_by(desc(Game.timestamp)).limit(per_page).offset((page - 1) * per_page).all()
-            
-            total_games = Game.query.count()
-        else:
-            user = get_current_user()
-            if not user:
-                flash("User not found. Please log in again.", "error")
-                return redirect(url_for('login'))
-            
-            # Get user's games with eager loading and pagination
-            games = Game.query.options(
-                joinedload(Game.player1),
-                joinedload(Game.player2),
-                joinedload(Game.player3),
-                joinedload(Game.player4)
-            ).filter(
-                or_(
-                    Game.player1_netid == user.netid,
-                    Game.player2_netid == user.netid,
-                    Game.player3_netid == user.netid,
-                    Game.player4_netid == user.netid
-                )
-            ).order_by(desc(Game.timestamp)).limit(per_page).offset((page - 1) * per_page).all()
-            
-            total_games = Game.query.filter(
-                or_(
-                    Game.player1_netid == user.netid,
-                    Game.player2_netid == user.netid,
-                    Game.player3_netid == user.netid,
-                    Game.player4_netid == user.netid
-                )
-            ).count()
+        # Show all games for both admin and regular users with eager loading
+        games = Game.query.options(
+            joinedload(Game.player1),
+            joinedload(Game.player2),
+            joinedload(Game.player3),
+            joinedload(Game.player4)
+        ).order_by(desc(Game.timestamp)).limit(per_page).offset((page - 1) * per_page).all()
+        
+        total_games = Game.query.count()
         
         total_pages = (total_games + per_page - 1) // per_page  # Ceiling division
         
@@ -636,19 +621,36 @@ def delete_game(game_id):
 def leaderboard():
     """Full ELO leaderboard (optimized with smart caching)"""
     if current_user.is_admin:
-        # Admins can see all users (including inactive ones)
+        # Admins can see all users (including inactive ones) who have played at least one game
         cache_key = 'leaderboard:admin:full'
         users = cache.get(cache_key)
         if users is None:
+            # Filter users who have played at least one game
             users = User.query.filter_by(archived=False)\
+                .filter(
+                    or_(
+                        User.games_as_player1.any(),
+                        User.games_as_player2.any(),
+                        User.games_as_player3.any(),
+                        User.games_as_player4.any()
+                    )
+                )\
                 .order_by(desc(User.elo_rating)).all()
             cache.set(cache_key, users, timeout=120)
     else:
-        # Regular users only see active users
+        # Regular users only see active users who have played at least one game
         cache_key = 'leaderboard:users:full'
         users = cache.get(cache_key)
         if users is None:
             users = User.query.filter_by(archived=False, is_active=True)\
+                .filter(
+                    or_(
+                        User.games_as_player1.any(),
+                        User.games_as_player2.any(),
+                        User.games_as_player3.any(),
+                        User.games_as_player4.any()
+                    )
+                )\
                 .order_by(desc(User.elo_rating)).all()
             cache.set(cache_key, users, timeout=120)
     return render_template("leaderboard.html", users=users)
