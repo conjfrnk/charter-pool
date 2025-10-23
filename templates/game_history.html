@@ -24,7 +24,8 @@
     <tbody>
       {% for game in games %}
       {% set time_diff = (now() - game.timestamp).total_seconds() %}
-      {% set can_delete = not current_user.is_admin and not game.tournament_id and time_diff < 900 %}
+      {% set is_participant = current_user.netid in game.get_all_player_netids() %}
+      {% set can_delete = not current_user.is_admin and not game.tournament_id and time_diff < 900 and is_participant %}
       <tr>
         <td>{{ game.timestamp.strftime('%Y-%m-%d %I:%M%p') }}</td>
         <td>
