@@ -276,21 +276,37 @@ def index():
         cache.set(cache_key, leaderboard, timeout=60)
     
     # Get user's rank (among active users who have played at least one game) - cached per user
+    # Only show rank if user has played at least one game
     rank_cache_key = f'user_rank:{user.netid}'
     user_rank = cache.get(rank_cache_key)
     if user_rank is None:
-        user_rank = User.query.filter(
-            User.elo_rating > user.elo_rating,
-            User.archived == False,
-            User.is_active == True
-        ).filter(
-            or_(
-                User.games_as_player1.any(),
-                User.games_as_player2.any(),
-                User.games_as_player3.any(),
-                User.games_as_player4.any()
+        # Check if user has played any games
+        has_played = db.session.query(
+            db.exists().where(
+                or_(
+                    Game.player1_netid == user.netid,
+                    Game.player2_netid == user.netid,
+                    Game.player3_netid == user.netid,
+                    Game.player4_netid == user.netid
+                )
             )
-        ).count() + 1
+        ).scalar()
+        
+        if has_played:
+            user_rank = User.query.filter(
+                User.elo_rating > user.elo_rating,
+                User.archived == False,
+                User.is_active == True
+            ).filter(
+                or_(
+                    User.games_as_player1.any(),
+                    User.games_as_player2.any(),
+                    User.games_as_player3.any(),
+                    User.games_as_player4.any()
+                )
+            ).count() + 1
+        else:
+            user_rank = None  # No rank if user hasn't played
         cache.set(rank_cache_key, user_rank, timeout=300)
     
     # Get open tournaments (cached)

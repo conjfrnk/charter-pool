@@ -15,7 +15,7 @@
         </div>
         <div class="stat">
           <span class="stat-label">Rank</span>
-          <span class="stat-value">#{{ user_rank }}</span>
+          <span class="stat-value">{% if user_rank %}#{{ user_rank }}{% else %}N/A{% endif %}</span>
         </div>
         <div class="stat">
           <span class="stat-label">Wins</span>
