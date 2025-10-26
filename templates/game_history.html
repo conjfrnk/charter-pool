@@ -106,13 +106,54 @@
     </tbody>
   </table>
   </div>
-  <div class="pagination" style="margin-top: 16px; display: flex; gap: 8px; align-items: center;">
+  <div class="pagination" style="margin-top: 16px; display: flex; gap: 8px; align-items: center; justify-content: center;">
     {% if page > 1 %}
       <a class="btn btn-secondary btn-sm" href="{{ url_for('game_history', page=page-1, per_page=request.args.get('per_page', 50)) }}">← Prev</a>
     {% else %}
       <span class="btn btn-secondary btn-sm" style="opacity:0.6; pointer-events:none;">← Prev</span>
     {% endif %}
-    <span>Page {{ page }} / {{ total_pages }}</span>
+    
+    <div style="display: flex; gap: 4px; align-items: center;">
+      {% set per_page_val = request.args.get('per_page', 50) %}
+      
+      {# Always show first page #}
+      {% if page == 1 %}
+        <span class="btn btn-secondary btn-sm" style="background: var(--primary-color); color: white;">1</span>
+      {% else %}
+        <a class="btn btn-secondary btn-sm" href="{{ url_for('game_history', page=1, per_page=per_page_val) }}">1</a>
+      {% endif %}
+      
+      {# Show ellipsis if there's a gap after page 1 #}
+      {% if page > 3 %}
+        <span style="padding: 0 4px;">...</span>
+      {% endif %}
+      
+      {# Show current page and surrounding pages #}
+      {% for p in range(2, total_pages) %}
+        {% if p >= page - 1 and p <= page + 1 %}
+          {% if p == page %}
+            <span class="btn btn-secondary btn-sm" style="background: var(--primary-color); color: white;">{{ p }}</span>
+          {% else %}
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('game_history', page=p, per_page=per_page_val) }}">{{ p }}</a>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      
+      {# Show ellipsis if there's a gap before last page #}
+      {% if page < total_pages - 2 %}
+        <span style="padding: 0 4px;">...</span>
+      {% endif %}
+      
+      {# Always show last page if there's more than 1 page #}
+      {% if total_pages > 1 %}
+        {% if page == total_pages %}
+          <span class="btn btn-secondary btn-sm" style="background: var(--primary-color); color: white;">{{ total_pages }}</span>
+        {% else %}
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('game_history', page=total_pages, per_page=per_page_val) }}">{{ total_pages }}</a>
+        {% endif %}
+      {% endif %}
+    </div>
+    
     {% if page < total_pages %}
       <a class="btn btn-secondary btn-sm" href="{{ url_for('game_history', page=page+1, per_page=request.args.get('per_page', 50)) }}">Next →</a>
     {% else %}
